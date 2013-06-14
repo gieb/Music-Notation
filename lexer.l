@@ -32,8 +32,7 @@ _				{ return   PAUSE; }
 [abcdefg][01234]		{ return   PITCH; }
 \.				{ return   DOT; }
 \|				{ return   BAR; }
-\|\|				{ return   PHRASE_BEG; }
-\|\|				{ return   PHRASE_END; }
+\|\|				{ return   PHRASE	; }
 \|:				{ return   REPEAT_BEG; }
 :\|				{ return   REPEAT_END; }
 \{				{ return   LINE_BEG; }
