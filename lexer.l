@@ -1,5 +1,5 @@
 %{
-#include <iostream>
+#include <string>
 
 using namespace std;
 
@@ -29,10 +29,13 @@ T:				{ return   TEMPO; }
 \+				{ return   SHARP; }
 ~				{ return   NATURAL; }
 _				{ return   PAUSE; }
-[abcdefg][01234]		{ return   PITCH; }
+[abcdefg][01234]		{
+					yylval.str = new string(yytext);
+					return   PITCH;
+				}
 \.				{ return   DOT; }
 \|				{ return   BAR; }
-\|\|				{ return   PHRASE	; }
+\|\|				{ return   PHRASE; }
 \|:				{ return   REPEAT_BEG; }
 :\|				{ return   REPEAT_END; }
 \{				{ return   LINE_BEG; }
@@ -41,10 +44,14 @@ _				{ return   PAUSE; }
 :				{ return   COLON; }
 ,				{ return   COMMA; }
 
-[0-9]+				{ yylval.num = atoi(yytext);
-				  return   NUMBER; }
-[_a-zA-Z]+[_\-a-zA-Z0-9]*	{ yylval.num = atoi(yytext);
-				  return   STRING; }
+[0-9]+				{
+					yylval.str = new string(yytext);
+					return   NUMBER;
+				}
+[_a-zA-Z]+[_\-a-zA-Z0-9]*	{
+					yylval.str = new string(yytext);
+					return   STRING;
+				}
 
 %%
 

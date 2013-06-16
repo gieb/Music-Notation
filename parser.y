@@ -1,6 +1,9 @@
 %{
 #include <cstdio>
 #include <iostream>
+#include <string>
+#include <typeinfo>
+
 using namespace std;
 
 extern "C" int yylex();
@@ -10,25 +13,55 @@ extern "C" char *yytext;
 extern int line;
  
 void yyerror(const char *s);
+
+typedef struct alias_struct {
+	string alias;
+	string value;
+} alias_struct;
+
+alias_struct*aliases = NULL;
+
 %}
 
-%union {
-	int num;
-	char*str;
+%code requires {
+	enum NOTE_TYPE {IS_TONE, IS_CHORD, IS_ALIAS, IS_PAUSE};
+	
+	typedef struct chord_struct{
+		int n;
+		string*tones;
+	} chord_struct;
+	
+	typedef struct note_struct{
+		NOTE_TYPE type;
+		void*value;
+	} note_struct;
+	
+	string getSound(note_struct* n, string length, bool dot);
+	string getNote(string*n, string length, bool dot);
 }
 
-%token ALIAS VERSE ENDING REPEAT
+%union {
+	string*str;
+	chord_struct*chord;
+	note_struct*note;
+}
 
-%token KEY SCALE
+%token <str>
+	ALIAS VERSE ENDING REPEAT
+	KEY SCALE
+	METER TEMPO
+	FLAT SHARP NATURAL PAUSE PITCH DOT BAR PHRASE REPEAT_BEG REPEAT_END LINE_BEG LINE_END
+	COLON COMMA
+	NUMBER STRING
 
-%token METER TEMPO
+%type <str>
+	bar_inside sound_group sound tone symbol
 
-%token FLAT SHARP NATURAL PAUSE PITCH  DOT BAR PHRASE REPEAT_BEG REPEAT_END LINE_BEG LINE_END
+%type <chord>
+	chord
 
-%token COLON COMMA
-
-%token <num> NUMBER
-%token <str> STRING
+%type <note>
+	note
 
 %%
 
@@ -121,8 +154,8 @@ bar:
 	;
 
 bar_inside:
-	bar_info sound_group { cout << "\tWnętrze taktu "<< yytext << endl; }
-	| sound_group { cout << "\tWnętrze taktu "<< yytext << endl; }
+	bar_info sound_group { cout << *$2 << endl; }
+	| sound_group { cout << *$1 << endl; }
 	;
 
 bar_info:
@@ -130,36 +163,109 @@ bar_info:
 	;
 
 sound_group:
-	sound_group COMMA sound
-	| sound { cout << "\t\tDźwięki "<< yytext << endl; }
+	sound_group COMMA sound{
+		string*temp = new string(*$1 + *$3);
+		$$ = temp;
+	}
+	| sound {
+		string*temp = new string(*$1);
+		$$ = temp;
+	}
 	;
 
 sound:
-	note COLON NUMBER DOT { cout << "\t\tDźwięk "<< yytext << endl; }
-	| note COLON NUMBER { cout << "\t\tDźwięk "<< yytext << endl; }
+	note COLON NUMBER DOT {
+		string*temp = new string(getSound($1, *$3, true));
+		$$ = temp;
+		
+		delete $1;
+		delete $3;
+	}
+	| note COLON NUMBER {
+		string*temp = new string(getSound($1, *$3, false));
+		$$ = temp;
+		
+		delete $1;
+		delete $3;
+	}
 	;
 
 note:
-	tone { cout << "\t\tNuta "<< yytext << endl; }
-	| chord { cout << "\t\tAkord "<< yytext << endl; }
-	| STRING { cout << "\t\tMakro "<< yytext << endl; }
-	| PAUSE { cout << "\t\tPauza "<< yytext << endl; }
+	tone {
+		$$ = new note_struct;
+		$$->type = IS_TONE;
+		$$->value = (void*)$1;
+	}
+	| chord {
+		$$ = new note_struct;
+		$$->type = IS_CHORD;
+		$$->value = (void*)$1;
+	}
+	| STRING {
+		$$ = new note_struct;
+		$$->type = IS_ALIAS;
+		$$->value = (void*)$1;
+	}
+	| PAUSE {
+		$$ = new note_struct;
+		$$->type = IS_PAUSE;
+		$$->value = NULL;
+	}
 	;
 
 chord:
-	tone COMMA chord
-	| tone COMMA tone { cout << "\t\t\tChwyt "<< yytext << endl; }
+	tone COMMA chord {
+		$$ = $3;
+		
+		string*temp = new string[$$->n + 1];
+		for(int i = 0; i < $$->n; i++){
+			temp[i] = $$->tones[i]; 
+		}
+		temp[$$->n++] = *$1;
+		
+		delete $1;
+		delete[] $$->tones;
+		
+		$$->tones = temp;
+	}
+	| tone COMMA tone {
+		$$ = new chord_struct;
+		$$->n = 2;
+		$$->tones = new string[$$->n];
+		$$->tones[0] = *$1;
+		$$->tones[1] = *$3;
+		
+		delete $1;
+		delete $3;
+	}
 	;
 
 tone:
-	symbol PITCH { cout << "\t\t\t\tWysokość "<< yytext << endl; }
-	| PITCH { cout << "\t\t\t\tWysokość "<< yytext << endl; }
+	symbol PITCH {
+		string*temp = new string(*$1 + *$2);
+		$$ = temp;
+		
+		delete $1;
+		delete $2;
+	}
+	| PITCH {
+		string*temp = new string(*$1);
+		$$ = temp;
+		
+		delete $1;
+	}
 	;
 
 symbol:
-	FLAT { cout << "\t\t\t\tBemol "<< yytext << endl; }
-	| SHARP { cout << "\t\t\t\tKrzyżyk "<< yytext << endl; }
-	| NATURAL { cout << "\t\t\t\tKasownik "<< yytext << endl; }
+	FLAT {
+		$$ = new string("+");
+	}
+	| SHARP {
+		$$ = new string("-");
+	}
+	| NATURAL {
+		$$ = new string(" ");
+	}
 	;
 
 %%
@@ -182,4 +288,55 @@ int main(int argc, char* args[]) {
 void yyerror(const char *s) {
 	cout << "line  " << line << ": " << yytext << ",  " << s << endl;
 	exit(-1);
+}
+
+string getSound(note_struct*n, string length, bool dot){
+	int i;
+	string sound;
+	string*temp;
+	chord_struct*c;
+	
+	switch(n->type){
+		case IS_TONE:
+			temp = new string(getNote((string*)n->value, length, dot));
+			sound = *temp;
+			
+			delete temp;
+			break;
+		case IS_CHORD:
+			
+			c = (chord_struct*)n->value;
+			
+			sound = "(chord ";
+			
+			for(i = 0; i < c->n; i++){
+				sound += getNote(&c->tones[i], length, dot);
+			}
+			sound += ")";
+			
+			delete c;
+			break;
+		case IS_ALIAS:
+			sound = "Alias";
+			break;
+		case IS_PAUSE:
+			temp = new string(getNote(NULL, length, dot));
+			sound = *temp;
+			
+			delete temp;
+			break;
+	}
+	return sound;
+}
+
+string getNote(string*n, string length, bool dot){
+	string temp;
+	
+	if(n){
+		temp = "(n " + *n + " '" + length + ")";
+	}else{
+		temp = "(r '" + length + ")";
+	}
+	
+	return temp;
 }
