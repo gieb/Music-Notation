@@ -2,6 +2,8 @@
 #include <cstdio>
 #include <iostream>
 #include <string>
+#include <vector>
+#include <map>
 #include <typeinfo>
 
 using namespace std;
@@ -14,22 +16,13 @@ extern int line;
  
 void yyerror(const char *s);
 
-typedef struct alias_struct {
-	string alias;
-	string value;
-} alias_struct;
-
-alias_struct*aliases = NULL;
+map<string, vector<string>* > aliases;
+map<string, string* > verses;
 
 %}
 
 %code requires {
 	enum NOTE_TYPE {IS_TONE, IS_CHORD, IS_ALIAS, IS_PAUSE};
-	
-	typedef struct chord_struct{
-		int n;
-		string*tones;
-	} chord_struct;
 	
 	typedef struct note_struct{
 		NOTE_TYPE type;
@@ -42,7 +35,7 @@ alias_struct*aliases = NULL;
 
 %union {
 	string*str;
-	chord_struct*chord;
+	vector<string>*chord;
 	note_struct*note;
 }
 
@@ -55,7 +48,13 @@ alias_struct*aliases = NULL;
 	NUMBER STRING
 
 %type <str>
-	bar_inside sound_group sound tone symbol
+	file
+	line line_inside line_info
+	verse verse_inside verse_declaration string
+	path path_inside
+	phrase repeat repeat_number repeat_inside
+	bar_group ending_bar ending bar bar_info bar_inside
+	sound_group sound tone symbol
 
 %type <chord>
 	chord
@@ -66,124 +65,235 @@ alias_struct*aliases = NULL;
 %%
 
 file:
-	alias line { cout << "Plik  "<< yytext << endl; }
+	alias line {
+		cout << "(score" << *$2 << ")";
+	}
 	;
 
 alias:
-	alias ALIAS STRING chord { cout << "Alias  "<< yytext << endl; }
-	| ALIAS STRING chord { cout << "Alias  "<< yytext << endl; }
+	alias ALIAS STRING chord {
+		aliases[*$3]=$4;
+		
+		delete $3;
+	}
+	| ALIAS STRING chord {
+		aliases[*$2]=$3;
+		
+		delete $2;
+	}
 	;
 
 line:
-	LINE_BEG line_inside LINE_END { cout << "Linia "<< yytext << endl; }
+	LINE_BEG line_inside LINE_END {
+		$$ = new string("(instrument(musicData" + *$2 + "))");
+	}
 	;
 
 line_inside:
-	line_info verse string { cout << "Wnętrze linii "<< yytext << endl; }
-	| line_info verse { cout << "Wnętrze linii "<< yytext << endl; }
+	line_info verse string {
+		$$ = new string(*$1 + *$2 + *$3);
+		
+		delete $1;
+		delete $2;
+		delete $3;
+	}
+	| line_info verse {
+		$$ = new string(*$1 + *$2);
+		
+		delete $1;
+		delete $2;
+	}
 	;
 
 line_info:
-	KEY SCALE { cout << "Klucz i skala "<< yytext << endl; }
-	| KEY { cout << "Klucz "<< yytext << endl; }
+	KEY SCALE {
+		$$ = new string("(clef " + $1->substr(2,1) + ")(key " + $2->substr(2,1) + ")");
+	}
+	| KEY {
+		$$ = new string("(clef " + $1->substr(2,1) + ")");
+	}
 	;
 
 verse:
-	verse verse_inside
-	| verse_inside { cout << "Część "<< yytext << endl; }
+	verse verse_inside{
+		$$ = new string(*$1 + *$2);
+		
+		delete $1;
+		delete $2;
+	}
+	| verse_inside {
+		$$ = $1;
+	}
 	;
 
 verse_inside:
-	verse_declaration path { cout << "Wnętrze części "<< yytext << endl; }
+	verse_declaration path {
+		$$ = verses[*$1] = $2;
+	}
 	;
 
 verse_declaration:
-	VERSE STRING { cout << "Deklaracja części "<< yytext << endl; }
+	VERSE STRING {
+		$$ = $2;
+	}
 	;
 
 string:
-	string STRING
-	| STRING { cout << "Napis "<< yytext << endl; }
+	string STRING {
+		$$ = new string(*$1 + *verses[*$2]);
+		
+		delete $1;
+		delete $2;
+	}
+	| STRING {
+		$$ = verses[*$1];
+	}
 	;
 
 path:
-	path path_inside
-	| path_inside { cout << "Ścieżka "<< yytext << endl; }
+	path path_inside {
+		$$ = new string(*$1 + *$2);
+		
+		delete $1;
+		delete $2;
+	}
+	| path_inside {
+		$$ = $1;
+	}
 	;
 
 path_inside:
-	phrase { cout << "Wnętrze ścieżki "<< yytext << endl; }
-	| repeat { cout << "Wnętrze ścieżki "<< yytext << endl; }
+	phrase {
+		$$ = $1;
+	}
+	| repeat {
+		$$ = $1;
+	}
 	;
 
 phrase:
-	PHRASE bar_group PHRASE { cout << "Fraza "<< yytext << endl; }
+	PHRASE bar_group PHRASE {
+		$$ = $2;
+	}
 	;
 
 repeat:
-	repeat_inside repeat_number ending_bar { cout << "Fraza powtarzana z taktem końcowym "<< yytext << endl; }
-	| repeat_inside repeat_number { cout << "Fraza powtarzana "<< yytext << endl; }
+	repeat_inside repeat_number ending_bar {
+		$$ = new string(*$1 + *$2 + *$3);
+		
+		delete $1;
+		delete $2;
+		delete $3;
+	}
+	| repeat_inside repeat_number {
+		$$ = new string(*$1 + *$2);
+		
+		delete $1;
+		delete $2;
+	}
 	;
 
 repeat_inside:
-	REPEAT_BEG bar_group ending_bar REPEAT_END { cout << "Wnętrze frazy "<< yytext << endl; }
-	| REPEAT_BEG bar_group REPEAT_END { cout << "Wnętrze frazy "<< yytext << endl; }
+	REPEAT_BEG bar_group ending_bar REPEAT_END {
+		$$ = new string("(barline |:)" + *$2 + *$3 + "(barline :|)");
+		
+		delete $2;
+		delete $3;
+	}
+	| REPEAT_BEG bar_group REPEAT_END {
+		$$ = new string("(barline |:)" + *$2 + "(barline :|)");
+		
+		delete $2;
+	}
 	;
 
 repeat_number:
-	REPEAT NUMBER { cout << "Powtarzanie "<< yytext << endl; }
+	REPEAT NUMBER {
+		$$ = new string("(text \"Repeat: " + *$2 + "\")");
+		
+		delete $2;
+	}
 	;
 
 bar_group:
-	bar bar_group
-	| bar { cout << "Takty "<< yytext << endl; }
+	bar_group bar {
+		$$ = new string(*$1 + *$2);
+		
+		delete $1;
+		delete $2;
+	}
+	| bar {
+		$$ = $1;
+	}
 	;
 
 ending_bar:
-	ending bar { cout << "Takt końcowy "<< yytext << endl; }
+	ending bar {
+		$$ = new string(*$1 + *$2);
+	}
 	;
 
 ending:
-	ending COMMA NUMBER
-	| ENDING NUMBER { cout << "Zakończenie "<< yytext << endl; }
+	ending COMMA NUMBER {
+		$$ = new string($1->substr($1->size()-2,2) + ", " + *$3 + "\")");
+	}
+	| ENDING NUMBER {
+		$$ = new string("(text \"Ending: " + *$2 + "\")");
+	}
 	;
 
 bar:
-	bar_inside BAR { cout << "Takt "<< yytext << endl; }
-	| bar_inside { cout << "Takt "<< yytext << endl; }
+	bar_inside BAR {
+		$$ = new string(*$1 + "(barline |)");
+		
+		delete $1;
+	}
+	| bar_inside {
+		$$ = $1;
+	}
 	;
 
 bar_inside:
-	bar_info sound_group { cout << *$2 << endl; }
-	| sound_group { cout << *$1 << endl; }
+	bar_info sound_group {
+		$$ = new string(*$1 + *$2);
+		
+		delete $1;
+		delete $2;
+	}
+	| sound_group {
+		$$ = $1;
+	}
 	;
 
 bar_info:
-	METER TEMPO NUMBER { cout << "\t\tMetrum i tempo "<< yytext << endl; }
+	METER TEMPO NUMBER {
+		string meter = "(time " + $1->substr(2,1) + " " + $1->substr(4,1) + ")";
+		string tempo = "(text \"Tempo: " + *$3 + "\")";
+		$$ = new string(meter + tempo);
+	}
 	;
 
 sound_group:
 	sound_group COMMA sound{
-		string*temp = new string(*$1 + *$3);
-		$$ = temp;
+		$$ = new string(*$1 + *$3);
+		
+		delete $1;
+		delete $3;
 	}
 	| sound {
-		string*temp = new string(*$1);
-		$$ = temp;
+		$$ = $1;
 	}
 	;
 
 sound:
 	note COLON NUMBER DOT {
-		string*temp = new string(getSound($1, *$3, true));
-		$$ = temp;
+		$$ = new string(getSound($1, *$3, true));
 		
 		delete $1;
 		delete $3;
 	}
 	| note COLON NUMBER {
-		string*temp = new string(getSound($1, *$3, false));
-		$$ = temp;
+		$$ = new string(getSound($1, *$3, false));
 		
 		delete $1;
 		delete $3;
@@ -216,24 +326,14 @@ note:
 chord:
 	tone COMMA chord {
 		$$ = $3;
-		
-		string*temp = new string[$$->n + 1];
-		for(int i = 0; i < $$->n; i++){
-			temp[i] = $$->tones[i]; 
-		}
-		temp[$$->n++] = *$1;
+		$$->push_back(*$1);
 		
 		delete $1;
-		delete[] $$->tones;
-		
-		$$->tones = temp;
 	}
 	| tone COMMA tone {
-		$$ = new chord_struct;
-		$$->n = 2;
-		$$->tones = new string[$$->n];
-		$$->tones[0] = *$1;
-		$$->tones[1] = *$3;
+		$$ = new vector<string>();
+		$$->push_back(*$1);
+		$$->push_back(*$3);
 		
 		delete $1;
 		delete $3;
@@ -270,6 +370,8 @@ symbol:
 
 %%
 
+/////////////////////////////MAIN/////////////////////////////
+
 int main(int argc, char* args[]) {
 	FILE *f = fopen(args[1], "r");
 	if (!f) {
@@ -285,6 +387,8 @@ int main(int argc, char* args[]) {
 	
 }
 
+///////////////////////////FUNCTIONS///////////////////////////
+
 void yyerror(const char *s) {
 	cout << "line  " << line << ": " << yytext << ",  " << s << endl;
 	exit(-1);
@@ -294,7 +398,7 @@ string getSound(note_struct*n, string length, bool dot){
 	int i;
 	string sound;
 	string*temp;
-	chord_struct*c;
+	vector<string>*c;
 	
 	switch(n->type){
 		case IS_TONE:
@@ -304,20 +408,28 @@ string getSound(note_struct*n, string length, bool dot){
 			delete temp;
 			break;
 		case IS_CHORD:
-			
-			c = (chord_struct*)n->value;
+			c = (vector<string>*)n->value;
 			
 			sound = "(chord ";
 			
-			for(i = 0; i < c->n; i++){
-				sound += getNote(&c->tones[i], length, dot);
+			for(i = 0; i < c->size(); i++){
+				sound += getNote(&c->at(i), length, dot);
 			}
 			sound += ")";
 			
 			delete c;
 			break;
 		case IS_ALIAS:
-			sound = "Alias";
+			temp = (string*)n->value;
+			c = aliases[*temp];
+			
+			sound = "(chord ";
+			
+			for(i = 0; i < c->size(); i++){
+				sound += getNote(&c->at(i), length, dot);
+			}
+			sound += ")";
+			
 			break;
 		case IS_PAUSE:
 			temp = new string(getNote(NULL, length, dot));
@@ -330,13 +442,9 @@ string getSound(note_struct*n, string length, bool dot){
 }
 
 string getNote(string*n, string length, bool dot){
-	string temp;
-	
 	if(n){
-		temp = "(n " + *n + " '" + length + ")";
+		return "(n " + *n + " '" + length + ")";
 	}else{
-		temp = "(r '" + length + ")";
+		return "(r '" + length + ")";
 	}
-	
-	return temp;
 }

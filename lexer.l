@@ -1,5 +1,6 @@
 %{
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -19,10 +20,19 @@ verse				{ return   VERSE; }
 ending				{ return   ENDING; }
 repeat				{ return   REPEAT; }
 
-K:[GF]				{ return   KEY; }
-S:[ABCDEFG](dur|mol)		{ return   SCALE; }
+K:[GF]				{
+					yylval.str = new string(yytext);
+					return   KEY;
+				}
+S:[ABCDEFG](dur|mol)		{
+					yylval.str = new string(yytext);
+					return   SCALE;
+				}
 
-M:[1-8]\/[1248]			{ return   METER; }
+M:[1-8]\/[1248]			{
+					yylval.str = new string(yytext);
+					return   METER;
+				}
 T:				{ return   TEMPO; }
 
 \-				{ return   FLAT; }
