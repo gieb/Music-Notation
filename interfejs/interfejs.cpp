@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Copyright (c) 2010-2013 Cecilio Salmeron. All rights reserved.
+// Copyright (c) 2010-2012 Cecilio Salmeron. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -27,14 +27,29 @@
 // the project at cecilios@users.sourceforge.net
 //---------------------------------------------------------------------------------------
 
-// header files required for X11. The order is important:
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xos.h>
+// For compilers that support precompilation, includes "wx/wx.h".
+#include "wx/wxprec.h"
 
-//some additional needed stuff
-#include <stdio.h>
-#include <stdlib.h>
+#ifdef __BORLANDC__
+    #pragma hdrstop
+#endif
+
+#ifndef WX_PRECOMP
+    #include <wx/app.h>
+    #include <wx/frame.h>
+    #include <wx/menu.h>
+    #include <wx/msgdlg.h>
+    #include <wx/filedlg.h>
+    #include <wx/image.h>
+    #include <wx/dc.h>
+    #include <wx/dcmemory.h>
+    #include <wx/event.h>
+    #include <wx/sizer.h>
+    #include <wx/textctrl.h>
+    #include <wx/button.h>
+#endif
+
+#include <iostream>
 
 //lomse headers
 #include <lomse_doorway.h>
@@ -48,102 +63,381 @@ using namespace lomse;
 
 
 //---------------------------------------------------------------------------------------
-// In this first example we are just going to display an score on the main window.
-// Let's define the necessary variables:
-//
-LomseDoorway    m_lomse;        //the Lomse library doorway
-Presenter*      m_pPresenter;	//relates the View, the Document and the Interactor
+// Define the application
+class MyApp: public wxApp
+{
+public:
+    bool OnInit();
 
-//the Lomse View renders its content on a bitmap. To manage it, Lomse
-//associates the bitmap to a RenderingBuffer object.
-//It is your responsibility to render the bitmap on a window.
-//Here you define the rendering buffer and its associated bitmap to be
-//used by the previously defined View.
-RenderingBuffer     m_rbuf_window;      //Lomse struct to contain the bitmap
-unsigned char*      m_buf_window;       //memory for the bitmap
-//some X11 related variables
-XImage*             m_ximg_window;      //the image to display
-int                 m_depth;            //color depth
-Visual*             m_visual;           //X11 Visual to use
+};
 
-//Lomse can manage a lot of bitmap formats and pixel formats. You must
-//define the format that you are going to use
-int              m_byte_order;	//endian (platform byte ordering)
-EPixelFormat     m_format;      //bitmap format
-unsigned         m_bpp;         //bits per pixel
-bool             m_flip_y;      //true if y axis is reversed
+//forward declarations
+class MyCanvas;
 
-//All typical X stuff needed to run the program and the main events handler loop,
-//as well as for handling windows:
-Display*    m_pDisplay;     //points to the X Server.
-int         m_screen;       //refers to which screen of the display to use.
-Window      m_window;       //the actual window itself
-GC          m_gc;           //And the GC is the graphics context.
-Atom        m_close_atom;
-XSetWindowAttributes m_window_attributes;
+//---------------------------------------------------------------------------------------
+// Define the main frame
+class MyFrame: public wxFrame
+{
+public:
+    MyFrame();
+    virtual ~MyFrame();
 
-//some additinal variables
-bool    m_view_needs_redraw;      //to control when the View must be re-drawn
+    //commands
+    void open_test_document();
+
+    //event handlers (these functions should _not_ be virtual)
+    void OnQuit(wxCommandEvent& event);
+    void OnAbout(wxCommandEvent& event);
+
+protected:
+    //accessors
+    MyCanvas* get_active_canvas() const { return m_canvas; }
+
+    //event handlers
+    void OnOpen(wxCommandEvent& WXUNUSED(event));
+    void OnZoomIn(wxCommandEvent& WXUNUSED(event));
+    void OnZoomOut(wxCommandEvent& WXUNUSED(event));
+    void OnClick(wxCommandEvent& WXUNUSED(event));
+    //lomse related
+    void initialize_lomse();
+
+    void create_menu();
+
+    LomseDoorway m_lomse;        //the Lomse library doorway
+    MyCanvas* m_canvas;
+    wxTextCtrl *MainEditBox;
+    wxButton *button;
+    DECLARE_EVENT_TABLE()
+};
+
+//---------------------------------------------------------------------------------------
+// MyCanvas is a window on which we show the scores
+class MyCanvas : public wxWindow
+{
+public:
+    MyCanvas(wxFrame *frame, LomseDoorway& lomse);
+    ~MyCanvas();
+
+    void update_view_content();
+
+    //callback wrappers
+    static void wrapper_update_window(void* pThis, SpEventInfo pEvent);
+
+    //commands
+    void open_test_document();
+    void open_file(const wxString& fullname);
+    void zoom_in();
+    void zoom_out();
+    void getTextFromBox(const char *text);
+protected:
+    //event handlers
+    void OnPaint(wxPaintEvent& WXUNUSED(event));
+    void OnSize(wxSizeEvent& event);
+    void OnKeyDown(wxKeyEvent& event);
+    void OnMouseEvent(wxMouseEvent& event);
+
+    void delete_rendering_buffer();
+    void create_rendering_buffer(int width, int height);
+    void copy_buffer_on_dc(wxDC& dc);
+    void update_rendering_buffer_if_needed();
+    void force_redraw();
+    void update_window();
+    void on_key(int x, int y, unsigned key, unsigned flags);
+    unsigned get_keyboard_flags(wxKeyEvent& event);
+    unsigned get_mouse_flags(wxMouseEvent& event);
+
+    // In this first example we are just going to display an score on the window.
+    // Let's define the necessary variables:
+    LomseDoorway&   m_lomse;        //the Lomse library doorway
+    Presenter*      m_pPresenter;
+
+    //the Lomse View renders its content on a bitmap. To manage it, Lomse
+    //associates the bitmap to a RenderingBuffer object.
+    //It is your responsibility to render the bitmap on a window.
+    //Here you define the rendering buffer and its associated bitmap to be
+    //used by the previously defined View.
+    RenderingBuffer     m_rbuf_window;
+    wxImage*            m_buffer;       //the image to serve as buffer
+    unsigned char*      m_pdata;        //ptr to the bitmap
+    int                 m_nBufWidth, m_nBufHeight;  //size of the bitmap
+
+
+    //some additinal variables
+    bool    m_view_needs_redraw;      //to control when the View must be re-drawn
+
+
+    DECLARE_EVENT_TABLE()
+};
+
+
+
+//=======================================================================================
+// MyApp implementation
+//=======================================================================================
+
+IMPLEMENT_APP(MyApp)
+
+// 'Main program' equivalent: the program execution "starts" here
+bool MyApp::OnInit()
+{
+    MyFrame* frame = new MyFrame;
+    frame->Show(true);
+    SetTopWindow(frame);
+
+    frame->open_test_document();
+
+    return true;
+}
+
+
+//=======================================================================================
+// MyFrame implementation
+//=======================================================================================
+
+//---------------------------------------------------------------------------------------
+// constants for menu IDs
+enum
+{
+    //new IDs
+    k_menu_file_open = wxID_HIGHEST + 1,
+
+    //using standard IDs
+    //it is important for the id corresponding to the "About" command to have
+    //this standard value as otherwise it won't be handled properly under Mac
+    //(where it is special and put into the "Apple" menu)
+    k_menu_file_quit = wxID_EXIT,
+    k_menu_help_about = wxID_ABOUT,
+    k_menu_zoom_in = wxID_ZOOM_IN,
+    k_menu_zoom_out = wxID_ZOOM_OUT,
+    BUTTON_Hello = wxID_REFRESH,
+};
+
+//---------------------------------------------------------------------------------------
+// events table
+BEGIN_EVENT_TABLE(MyFrame, wxFrame)
+    EVT_MENU(k_menu_file_quit, MyFrame::OnQuit)
+    EVT_MENU(k_menu_help_about, MyFrame::OnAbout)
+    EVT_MENU(k_menu_file_open, MyFrame::OnOpen)
+    EVT_MENU(k_menu_zoom_in, MyFrame::OnZoomIn)
+    EVT_MENU(k_menu_zoom_out, MyFrame::OnZoomOut)
+    EVT_BUTTON ( BUTTON_Hello, MyFrame::OnClick )
+END_EVENT_TABLE()
 
 
 //---------------------------------------------------------------------------------------
-void display_view_content(const rendering_buffer* rbuf)
+MyFrame::MyFrame()
+    : wxFrame(NULL, wxID_ANY, _T("Lomse sample for wxWidgets"),
+              wxDefaultPosition, wxSize(850, 600))
 {
-    if(m_ximg_window == 0) return;
+    create_menu();
+    initialize_lomse();
 
-    //copy the view bitmap onto the image
-    m_ximg_window->data = (char*)m_buf_window;
-
-    //display the image
-    XPutImage(m_pDisplay,
-              m_window,
-              m_gc,
-              m_ximg_window,
-              0, 0, 0, 0,
-              rbuf->width(),
-              rbuf->height()
-             );
+    // create our one and only child -- it will take our entire client area
+    m_canvas = new MyCanvas(this, m_lomse);
+    wxSizer *sz = new wxBoxSizer(wxVERTICAL);
+    sz->Add(m_canvas, 3, wxGROW);
+    MainEditBox = new wxTextCtrl(this,  wxID_HIGHEST + 1,
+      wxT("Hi!dsfsdsdf"), wxDefaultPosition, wxSize(850,40),
+      wxTE_MULTILINE | wxTE_RICH , wxDefaultValidator, wxTextCtrlNameStr);
+    sz->Add(MainEditBox);
+    button = new wxButton(this,BUTTON_Hello,_T("Generuj"), wxDefaultPosition, wxDefaultSize, 0);
+    sz->Add(button);
+    SetSizer(sz);
 }
 
 //---------------------------------------------------------------------------------------
-void do_update_window()
+MyFrame::~MyFrame()
 {
-    // Invoking do_update_window() results in just putting immediately the content
-    // of the currently rendered buffer to the window without neither calling
-    // any lomse methods nor generating platform related events (i.e. window on_paint)
-
-    display_view_content(&m_rbuf_window);
-    XSync(m_pDisplay, false);
 }
 
 //---------------------------------------------------------------------------------------
-void update_window(SpEventInfo pEvent)
+void MyFrame::create_menu()
 {
-    // Callback method for Lomse
+    wxMenu *fileMenu = new wxMenu;
+    fileMenu->Append(k_menu_file_open, _T("&Open..."));
+    fileMenu->AppendSeparator();
+    fileMenu->Append(k_menu_file_quit, _T("E&xit"));
 
-    do_update_window();
+    wxMenu* zoomMenu = new wxMenu;
+    zoomMenu->Append(k_menu_zoom_in);
+    zoomMenu->Append(k_menu_zoom_out);
+
+    wxMenu *helpMenu = new wxMenu;
+    helpMenu->Append(k_menu_help_about, _T("&About"));
+
+    wxMenuBar* menuBar = new wxMenuBar;
+    menuBar->Append(fileMenu, _T("&File"));
+    menuBar->Append(zoomMenu, _T("&Zoom"));
+    menuBar->Append(helpMenu, _T("&Help"));
+
+    SetMenuBar(menuBar);
+
+
 }
 
 //---------------------------------------------------------------------------------------
-void open_document()
+void MyFrame::OnQuit(wxCommandEvent& WXUNUSED(event))
 {
-    //Normally you will load the content of a file. But in this
-    //simple example we will create an empty document and define its content
-    //from a text string
+    Close(true /*force to close*/);
+}
 
-    //create a document and get the 'presenter'.
-    //The Presenter takes care of creating and maintaining all objects
-    //and relationships between the document, its views and the interactors
-    //to interact with the view
+//---------------------------------------------------------------------------------------
+void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
+{
+    wxMessageBox(_T("Lomse: sample 1 for wxWidgets"),
+                 _T("About wxWidgets Lomse sample"),
+                 wxOK | wxICON_INFORMATION, this);
+}
+
+//---------------------------------------------------------------------------------------
+void MyFrame::initialize_lomse()
+{
+    // Lomse knows nothing about windows. It renders everything on bitmaps and the
+    // user application uses them. For instance, to display it on a wxWindows.
+    // Lomse supports a lot of bitmap formats and pixel formats. Therefore, before
+    // using the Lomse library you MUST specify which bitmap formap to use.
+    //
+    // For wxWidgets, I would suggets using a platform independent format. So
+    // I will use a wxImage as the rendering  buffer. wxImage is platform independent
+    // and its buffer is an array of characters in RGBRGBRGB... format,  in the
+    // top-to-bottom, left-to-right order. That is, the first RGB triplet corresponds
+    // to the first pixel of the first row; the second RGB triplet, to the second
+    // pixel of the first row, and so on until the end of the first row,
+    // with second row following after it and so on.
+    // Therefore, the pixel format is RGB 24 bits.
+    //
+    // Let's define the requiered information:
+
+        //the pixel format
+        int pixel_format = k_pix_format_rgb24;  //RGB 24bits
+
+        //the desired resolution. For Linux and Windows 96 pixels per inch works ok.
+        int resolution = 96;    //96 ppi
+
+        //Normal y axis direction is 0 coordinate at top and increase downwards. You
+        //must specify if you would like just the opposite behaviour. For Windows and
+        //Linux the default behaviour is the right behaviour.
+        bool reverse_y_axis = false;
+
+    //initialize the library with these values
+    m_lomse.init_library(pixel_format,resolution, reverse_y_axis);
+}
+
+//---------------------------------------------------------------------------------------
+void MyFrame::open_test_document()
+{
+    get_active_canvas()->open_test_document();
+
+    //BUG_BYPASS
+    // In Linux there are problems to catch Key Up/Down events. See for instance
+    // http://forums.wxwidgets.org/viewtopic.php?t=33057&p=137567
+    // Following line is not needed for Windows (doen't hurt) but it is
+    // necessary for Linux, in order to receive Key Up/Down events
+    get_active_canvas()->SetFocus();
+}
+
+//---------------------------------------------------------------------------------------
+void MyFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
+{
+    wxString defaultPath = wxT("../../../test-scores/");
+
+    wxString filename = wxFileSelector(_("Open score"), defaultPath,
+        wxEmptyString, wxEmptyString, wxT("LenMus files|*.lms;*.lmd"));
+
+    if (filename.empty())
+        return;
+
+    get_active_canvas()->open_file(filename);
+}
+void MyFrame::OnClick(wxCommandEvent& WXUNUSED(event)){
+
+    wxString mystring=MainEditBox->GetValue();
+    get_active_canvas()->getTextFromBox(mystring.mb_str(wxConvUTF8));
+}
+//---------------------------------------------------------------------------------------
+void MyFrame::OnZoomIn(wxCommandEvent& WXUNUSED(event))
+{
+    get_active_canvas()->zoom_in();
+}
+
+//---------------------------------------------------------------------------------------
+void MyFrame::OnZoomOut(wxCommandEvent& WXUNUSED(event))
+{
+    get_active_canvas()->zoom_out();
+}
+
+
+//=======================================================================================
+// MyCanvas implementation
+//=======================================================================================
+
+BEGIN_EVENT_TABLE(MyCanvas, wxWindow)
+    EVT_KEY_DOWN(MyCanvas::OnKeyDown)
+    EVT_MOUSE_EVENTS(MyCanvas::OnMouseEvent)
+    EVT_SIZE(MyCanvas::OnSize)
+    EVT_PAINT(MyCanvas::OnPaint)
+END_EVENT_TABLE()
+
+
+//---------------------------------------------------------------------------------------
+MyCanvas::MyCanvas(wxFrame *frame, LomseDoorway& lomse)
+    : wxWindow(frame, wxID_ANY)
+    , m_lomse(lomse)
+    , m_pPresenter(NULL)
+    , m_buffer(NULL)
+    , m_view_needs_redraw(true)
+{
+}
+
+//---------------------------------------------------------------------------------------
+MyCanvas::~MyCanvas()
+{
+    delete_rendering_buffer();
+
+    //delete the Presenter. This will also delete the Document, the Interactor,
+    //the View and other related objects
     delete m_pPresenter;
-    m_pPresenter = m_lomse.new_document(ViewFactory::k_view_vertical_book,
-        "(lenmusdoc (vers 0.0)"
-            "(content "
-                "(para (txt \"Hello world!\"))"
-                "(score (vers 1.6) "
-                    "(instrument (musicData (clef G)(key C)(time 2 4)(n c4 q) )))"
-            ")"
-        ")" );
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::getTextFromBox(const char *text){
+    try{
+
+    std::string input(text);
+    delete m_pPresenter;
+    m_pPresenter = m_lomse.new_document(ViewFactory::k_view_horizontal_book,input);
+
+    //get the pointer to the interactor, set the rendering buffer and register for
+    //receiving desired events
+
+    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
+    {
+        //connect the View with the window buffer
+        spInteractor->set_rendering_buffer(&m_rbuf_window);
+
+        //ask to receive desired events
+        spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
+
+        //hide edition caret
+        spInteractor->hide_caret();
+    }
+
+    //render the new score
+    m_view_needs_redraw = true;
+    Refresh(false /* don't erase background */);
+    }catch(...){
+       wxMessageBox( wxT("Błąd składni!") );
+    }
+}
+void MyCanvas::open_file(const wxString& fullname)
+
+{
+    //create a new View
+    std::string filename( fullname.mb_str(wxConvUTF8) );
+    delete m_pPresenter;
+
+    m_pPresenter = m_lomse.open_document(ViewFactory::k_view_horizontal_book,
+                                         filename);
 
     //get the pointer to the interactor, set the rendering buffer and register for
     //receiving desired events
@@ -153,7 +447,136 @@ void open_document()
         spInteractor->set_rendering_buffer(&m_rbuf_window);
 
         //ask to receive desired events
-        spInteractor->add_event_handler(k_update_window_event, update_window);
+        spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
+
+        //hide edition caret
+        spInteractor->hide_caret();
+    }
+
+    //render the new score
+    m_view_needs_redraw = true;
+    Refresh(false /* don't erase background */);
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::OnSize(wxSizeEvent& WXUNUSED(event))
+{
+    wxSize size = this->GetClientSize();
+    create_rendering_buffer(size.GetWidth(), size.GetHeight());
+
+    Refresh(false /* don't erase background */);
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::OnPaint(wxPaintEvent& event)
+{
+    if (!m_pPresenter)
+        event.Skip(false);
+    else
+    {
+        update_rendering_buffer_if_needed();
+        wxPaintDC dc(this);
+        copy_buffer_on_dc(dc);
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::update_rendering_buffer_if_needed()
+{
+    if (m_view_needs_redraw)
+        update_view_content();
+
+    m_view_needs_redraw = false;
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::delete_rendering_buffer()
+{
+    delete m_buffer;
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::create_rendering_buffer(int width, int height)
+{
+    //creates a bitmap of specified size and associates it to the rendering
+    //buffer for the view. Any existing buffer is automatically deleted
+
+    // allocate a new rendering buffer
+    delete_rendering_buffer();
+    m_nBufWidth = width;
+    m_nBufHeight = height;
+    m_buffer = new wxImage(width, height);
+
+    //get pointer to wxImage internal bitmap
+    m_pdata = m_buffer->GetData();
+
+    //Attach this bitmap to Lomse rendering buffer
+    #define BYTES_PER_PIXEL 3   //wxImage  has RGB, 24 bits format
+    int stride = m_nBufWidth * BYTES_PER_PIXEL;     //number of bytes per row
+    m_rbuf_window.attach(m_pdata, m_nBufWidth, m_nBufHeight, stride);
+
+    m_view_needs_redraw = true;
+}
+
+//-------------------------------------------------------------------------
+void MyCanvas::open_test_document()
+{
+    //Normally you will load the content of a file. But in this
+    //simple example we will create an empty document and define its content
+    //from a text string
+
+    //first, we will create a 'presenter'. It takes care of cretaing and maintaining
+    //all objects and relationships between the document, its views and the interactors
+    //to interct with the view
+    delete m_pPresenter;
+    m_pPresenter = m_lomse.new_document(ViewFactory::k_view_vertical_book,
+        "(lenmusdoc (vers 0.0) (content (score (vers 1.6) "
+        "(instrument (name \"Violin\")(abbrev \"Vln.\")(musicData "
+        "(clef F4)(key E)(time 2 4)(n +c3 e.)(barline)"
+        "(n e2 q)(n e3 q)(barline)"
+        "(n f2 e (beam 1 +))(n g2 e (beam 1 -))"
+            "(n f3 e (beam 3 +))(n g3 e (beam 3 -))(barline)"
+        "(n f2 e. (beam 4 +))(n g2 s (beam 4 -b))"
+            "(n f3 s (beam 5 +f))(n g3 e. (beam 5 -))(barline)"
+        "(n g2 e. (beam 2 +))(n e3 s (beam 2 -b))(n g3 q)(barline)"
+        "(n a2 e (beam 6 +))(n g2 e (beam 6 -))(n a3 q)(barline)"
+        "(n -b2 q)(n =b3 q)(barline)"
+        "(n xc3 q)(n ++c4 q)(barline)"
+        "(n d3 q)(n --d4 q)(barline)"
+        "(chord (n e3 q)(n c3 q)(n g3 q))"
+        "(n e4 q)(barline)"
+        "(n f3 q)(n f4 q)(barline end)"
+        "))"
+        "(instrument (name \"piano\")(abbrev \"P.\")(staves 2)(musicData "
+        "(clef G p1)(clef F4 p2)(key F)(time 12 8)"
+        "(n c5 e. p1)(barline)"
+        "(n e4 e p1 (beam 10 +))(n g3 e p2 (beam 10 -))"
+        "(n e4 e p1 (stem up)(beam 11 +))(n e5 e p1 (stem down)(beam 11 -))(barline)"
+        "(n e4 s p1 (beam 12 ++))(n f4 s p1 (beam 12 ==))"
+            "(n g4 s p1 (beam 12 ==))(n a4 s p1 (beam 12 --))"
+        "(n c5 q p1)(barline)"
+        "(n c4 q (slur 1 start))(n e4 q)"
+        "(barline)"
+        "(n g4 q )(n c5 q (slur 1 stop))"
+        "(barline)"
+        "(n e4 q (tie 1 start))(n e4 q (tie 1 stop))"
+        "(barline)"
+        "(n c4 e g+ t3/2)(n e4 e)(n d4 e g- t-)(n g4 q)"
+        "(barline)"
+        "(n c4 e t3/2)(n e4 e)(n d4 e t-)(n g4 q)"
+        "(barline)"
+        "))"
+        ")))" );
+
+    //get the pointer to the interactor, set the rendering buffer and register for
+    //receiving desired events
+    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
+    {
+        //connect the View with the window buffer
+        spInteractor->set_rendering_buffer(&m_rbuf_window);
+
+        //ask to receive desired events
+        spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 
         //hide edition caret
         spInteractor->hide_caret();
@@ -161,7 +584,41 @@ void open_document()
 }
 
 //---------------------------------------------------------------------------------------
-void update_view_content()
+void MyCanvas::force_redraw()
+{
+    update_view_content();
+    update_window();
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::wrapper_update_window(void* pThis, SpEventInfo pEvent)
+{
+    static_cast<MyCanvas*>(pThis)->update_window();
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::update_window()
+{
+    // Invoking update_window() results in just putting immediately the content
+    // of the currently rendered buffer to the window without neither calling
+    // any lomse methods nor generating any events  (i.e. Refresh() window)
+
+    wxClientDC dc(this);
+    copy_buffer_on_dc(dc);
+}
+
+//---------------------------------------------------------------------------------------
+void MyCanvas::copy_buffer_on_dc(wxDC& dc)
+{
+    if (!m_buffer || !m_buffer->IsOk())
+        return;
+
+    wxBitmap bitmap(*m_buffer);
+    dc.DrawBitmap(bitmap, 0, 0, false /* don't use mask */);
+}
+
+//-------------------------------------------------------------------------
+void MyCanvas::update_view_content()
 {
     //request the view to re-draw the bitmap
 
@@ -172,344 +629,143 @@ void update_view_content()
 }
 
 //---------------------------------------------------------------------------------------
-bool determine_suitable_bitmap_format()
+void MyCanvas::OnKeyDown(wxKeyEvent& event)
 {
-    //Returns false if we can not find a suitable bitmap format
-    //for this platform
+    if (!m_pPresenter) return;
 
-    //determine color depth
-    m_depth  = XDefaultDepth(m_pDisplay, m_screen);
-    m_visual = XDefaultVisual(m_pDisplay, m_screen);
-    unsigned long r_mask = m_visual->red_mask;
-    unsigned long g_mask = m_visual->green_mask;
-    unsigned long b_mask = m_visual->blue_mask;
+    int nKeyCode = event.GetKeyCode();
+    unsigned flags = get_keyboard_flags(event);
 
-    if(m_depth < 15 || r_mask == 0 || g_mask == 0 || b_mask == 0)
+    //fix ctrol+key codes
+    if (nKeyCode > 0 && nKeyCode < 27)
     {
-        fprintf(stderr,
-               "There's no Visual compatible with minimal Lomse requirements:\n"
-               "At least 15-bit color depth and TrueColor or DirectColor class.\n\n");
-        XCloseDisplay(m_pDisplay);
-        return false;
+        nKeyCode += int('A') - 1;
+        flags |= k_kbd_ctrl;
     }
 
-    //determine byte ordering
-    int t = 1;
-    int hw_byte_order = LSBFirst;
-    if(*(char*)&t == 0)
-        hw_byte_order = MSBFirst;
-
-    //use mask to determine the bitmap format to use
-    switch(m_depth)
+    //process key
+    switch (nKeyCode)
     {
-        case 15:
-            m_bpp = 16;
-            if(r_mask == 0x7C00 && g_mask == 0x3E0 && b_mask == 0x1F)
-            {
-                m_format = k_pix_format_rgb555;
-                m_byte_order = hw_byte_order;
-            }
-            break;
+        case WXK_SHIFT:
+        case WXK_ALT:
+        case WXK_CONTROL:
+            return;      //do nothing
 
-        case 16:
-            m_bpp = 16;
-            if(r_mask == 0xF800 && g_mask == 0x7E0 && b_mask == 0x1F)
-            {
-                m_format = k_pix_format_rgb565;
-                m_byte_order = hw_byte_order;
-            }
-            break;
-
-        case 24:
-        case 32:
-            m_bpp = 32;
-            if(g_mask == 0xFF00)
-            {
-                if(r_mask == 0xFF && b_mask == 0xFF0000)
-                {
-                    switch(m_format)
-                    {
-                        case k_pix_format_rgba32:
-                            m_format = k_pix_format_rgba32;
-                            m_byte_order = LSBFirst;
-                            break;
-
-                        case k_pix_format_abgr32:
-                            m_format = k_pix_format_abgr32;
-                            m_byte_order = MSBFirst;
-                            break;
-
-                        default:
-                            m_byte_order = hw_byte_order;
-                            m_format =
-                                (hw_byte_order == LSBFirst) ?
-                                k_pix_format_rgba32 :
-                                k_pix_format_abgr32;
-                            break;
-                    }
-                }
-
-                if(r_mask == 0xFF0000 && b_mask == 0xFF)
-                {
-                    switch(m_format)
-                    {
-                        case k_pix_format_argb32:
-                            m_format = k_pix_format_argb32;
-                            m_byte_order = MSBFirst;
-                            break;
-
-                        case k_pix_format_bgra32:
-                            m_format = k_pix_format_bgra32;
-                            m_byte_order = LSBFirst;
-                            break;
-
-                        default:
-                            m_byte_order = hw_byte_order;
-                            m_format =
-                                (hw_byte_order == MSBFirst) ?
-                                k_pix_format_argb32 :
-                                k_pix_format_bgra32;
-                            break;
-                    }
-                }
-            }
-            break;
-    }
-
-    //if no suitable format found, terminate
-    if(m_format == k_pix_format_undefined)
-    {
-        fprintf(stderr,
-               "RGB masks are not compatible with Lomse pixel formats:\n"
-               "R=%08lx, R=%08lx, B=%08lx\n", r_mask, g_mask, b_mask);
-        XCloseDisplay(m_pDisplay);
-        return false;
-    }
-
-    return true;
-}
-
-//---------------------------------------------------------------------------------------
-bool create_rendering_buffer(unsigned width, unsigned height, unsigned flags)
-{
-    //allocate memory for the bitmap, fill it with 1's
-    m_buf_window = new unsigned char[width * height * (m_bpp / 8)];
-    memset(m_buf_window, 255, width * height * (m_bpp / 8));
-
-    //attach this memory to the rendering buffer
-    m_rbuf_window.attach(m_buf_window, width, height,
-                         (m_flip_y ? -width * (m_bpp / 8) : width * (m_bpp / 8)) );
-
-    //create an X11 image using the allocated memory as buffer
-    m_ximg_window = XCreateImage(m_pDisplay,
-                                 m_visual,
-                                 m_depth,
-                                 ZPixmap,
-                                 0,
-                                 (char*)m_buf_window,
-                                 width,
-                                 height,
-                                 m_bpp,
-                                 width * (m_bpp / 8)
-                                );
-    m_ximg_window->byte_order = m_byte_order;
-
-    //raise flag to redraw window when requested
-    m_view_needs_redraw = true;
-
-    return true;
-}
-
-//---------------------------------------------------------------------------------------
-void delete_rendering_buffer()
-{
-    delete [] m_buf_window;
-    if (m_ximg_window)
-    {
-        m_ximg_window->data = 0;
-        XDestroyImage(m_ximg_window);
+        default:
+            on_key(event.GetX(), event.GetY(), nKeyCode, flags);;
     }
 }
 
-//---------------------------------------------------------------------------------------
-// application main events handler loop
-int handle_events()
+//-------------------------------------------------------------------------
+void MyCanvas::on_key(int x, int y, unsigned key, unsigned flags)
 {
-    XFlush(m_pDisplay);
-
-    bool quit = false;
-    while(!quit)
+    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
-        if(m_view_needs_redraw)
+        switch (key)
         {
-            update_view_content();
-            do_update_window();
-            m_view_needs_redraw = false;
-        }
-
-        XEvent event;
-        XNextEvent(m_pDisplay, &event);
-
-        switch(event.type)
-        {
-            //--------------------------------------------------------------------
-            case ConfigureNotify:
-            {
-                if(event.xconfigure.width  != int(m_rbuf_window.width()) ||
-                   event.xconfigure.height != int(m_rbuf_window.height()))
-                {
-                    int width  = event.xconfigure.width;
-                    int height = event.xconfigure.height;
-                    delete_rendering_buffer();
-                    create_rendering_buffer(width, height, 0);
-                    do_update_window();
-                }
+            case 'D':
+                spInteractor->switch_task(TaskFactory::k_task_drag_view);
                 break;
-            }
-
-            //--------------------------------------------------------------------
-            case Expose:
-                if (event.xexpose.count == 0)
-                {
-                    display_view_content(&m_rbuf_window);
-                    XFlush(m_pDisplay);
-                    XSync(m_pDisplay, false);
-                }
+            case 'S':
+                spInteractor->switch_task(TaskFactory::k_task_selection);
                 break;
-
-            //--------------------------------------------------------------------
-            case ClientMessage:
-                if(event.xclient.format == 32
-                   && event.xclient.data.l[0] == int(m_close_atom) )
-                {
-                    quit = true;
-                }
+            case '+':
+                spInteractor->zoom_in(x, y);
+                force_redraw();
                 break;
+            case '-':
+                spInteractor->zoom_out(x, y);
+                force_redraw();
+                break;
+            default:
+               return;
         }
     }
-
-    return 0;
 }
 
-//---------------------------------------------------------------------------------------
-void define_events_to_process()
+//-------------------------------------------------------------------------
+void MyCanvas::zoom_in()
 {
-    XSelectInput(m_pDisplay, m_window, ExposureMask | StructureNotifyMask );
-}
+    if (!m_pPresenter) return;
 
-//---------------------------------------------------------------------------------------
-void create_main_window(unsigned width, unsigned height)
-{
-    memset(&m_window_attributes, 0, sizeof(m_window_attributes));
-    m_window_attributes.border_pixel = XBlackPixel(m_pDisplay, m_screen);
-    m_window_attributes.background_pixel = XWhitePixel(m_pDisplay, m_screen);
-    m_window_attributes.override_redirect = 0;
-
-    unsigned long window_mask = CWBackPixel | CWBorderPixel;
-
-    m_window = XCreateWindow(m_pDisplay,
-                             XDefaultRootWindow(m_pDisplay),
-                             0, 0,
-                             width, height,
-                             0,
-                             m_depth,
-                             InputOutput,
-                             CopyFromParent,
-                             window_mask,
-                             &m_window_attributes
-                            );
-
-    //set window title
-    XSetStandardProperties(m_pDisplay,
-                           m_window,
-                           "Lomse examples. Example_1",     //window title
-                           "Lomse_1",                       //name in tasks bar
-                           None,
-                           NULL,
-                           0,
-                           NULL
-                          );
-
-
-    // create the Graphics Context
-    m_gc = XCreateGC(m_pDisplay, m_window, 0, 0);
-
-}
-
-//---------------------------------------------------------------------------------------
-bool init_x()
-{
-    //returns false if an error occurs
-
-    //create X connection
-    m_pDisplay = XOpenDisplay(NULL);
-    if(m_pDisplay == 0)
+    //do zoom in centered on window center
+    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
-        fprintf(stderr, "Unable to open DISPLAY!\n");
-        return false;
+        wxSize size = this->GetClientSize();
+        spInteractor->zoom_in(size.GetWidth()/2, size.GetHeight()/2);
+        force_redraw();
     }
+}
 
-    m_screen = XDefaultScreen(m_pDisplay);
-
-    //As lomse renders on a bitmap it is necessary to determine the best
-    //bitmap format suited for your specific OS and platform
-    if (!determine_suitable_bitmap_format())
-        return false;
-
-    create_main_window(850, 600);       //850 x 600 pixels
-    create_rendering_buffer(850, 600, 0);
-
-    XMapWindow(m_pDisplay, m_window);
-
-    m_close_atom = XInternAtom(m_pDisplay, "WM_DELETE_WINDOW", false);
-
-    XSetWMProtocols(m_pDisplay, m_window, &m_close_atom, 1);
-    return true;        //no error
-};
-
-//---------------------------------------------------------------------------------------
-void close_x()
+//-------------------------------------------------------------------------
+void MyCanvas::zoom_out()
 {
-    XFreeGC(m_pDisplay, m_gc);
-    XDestroyWindow(m_pDisplay,m_window);
-    XCloseDisplay(m_pDisplay);
-};
+    if (!m_pPresenter) return;
 
-//---------------------------------------------------------------------------------------
-void initialize_lomse()
-{
-    //initialize the Lomse library
-    m_flip_y = false;               //y axis is not reversed
-    m_lomse.init_library(m_format, 96, m_flip_y);   //resolution=96 ppi
-
-    //initialize lomse related variables
-    m_pPresenter = NULL;
+    //do zoom out centered on window center
+    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
+    {
+        wxSize size = this->GetClientSize();
+        spInteractor->zoom_out(size.GetWidth()/2, size.GetHeight()/2);
+        force_redraw();
+    }
 }
 
 //---------------------------------------------------------------------------------------
-// application entry point
-int main ()
+unsigned MyCanvas::get_mouse_flags(wxMouseEvent& event)
 {
-    if (!init_x())
-        exit(1);
+    unsigned flags = 0;
+    if (event.LeftIsDown())     flags |= k_mouse_left;
+    if (event.RightIsDown())    flags |= k_mouse_right;
+    if (event.MiddleDown())     flags |= k_mouse_middle;
+    if (event.ShiftDown())      flags |= k_kbd_shift;
+    if (event.AltDown())        flags |= k_kbd_alt;
+    if (event.ControlDown())    flags |= k_kbd_ctrl;
+    return flags;
+}
 
-    initialize_lomse();
+//---------------------------------------------------------------------------------------
+unsigned MyCanvas::get_keyboard_flags(wxKeyEvent& event)
+{
+    unsigned flags = 0;
+    if (event.ShiftDown())   flags |= k_kbd_shift;
+    if (event.AltDown()) flags |= k_kbd_alt;
+    if (event.ControlDown()) flags |= k_kbd_ctrl;
+    return flags;
+}
 
-    //create a music score and a View. The view will display the score
-    //when the paint event is sent to lomse, once the main windows is
-    //shown and the event handling loop is started
-    open_document();
+//-------------------------------------------------------------------------
+void MyCanvas::OnMouseEvent(wxMouseEvent& event)
+{
+    if (!m_pPresenter) return;
 
-	//run the main events handling loop
-	define_events_to_process();
-    handle_events();
+    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
+    {
+        wxEventType nEventType = event.GetEventType();
+        wxPoint pos = event.GetPosition();
+        unsigned flags = get_mouse_flags(event);
 
-    //delete the view and the rendering buffer
-    delete_rendering_buffer();
-    delete m_pPresenter;    //this will also delete the Doc, the Views and all other stuff
-
-    //close X connection
-    close_x();
-
-    return 0;
+        if (nEventType==wxEVT_LEFT_DOWN)
+        {
+            flags |= k_mouse_left;
+            spInteractor->on_mouse_button_down(pos.x, pos.y, flags);
+        }
+        else if (nEventType==wxEVT_LEFT_UP)
+        {
+            flags |= k_mouse_left;
+            spInteractor->on_mouse_button_up(pos.x, pos.y, flags);
+        }
+        else if (nEventType==wxEVT_RIGHT_DOWN)
+        {
+            flags |= k_mouse_right;
+            spInteractor->on_mouse_button_down(pos.x, pos.y, flags);
+        }
+        else if (nEventType==wxEVT_RIGHT_UP)
+        {
+            flags |= k_mouse_right;
+            spInteractor->on_mouse_button_up(pos.x, pos.y, flags);
+        }
+        else if (nEventType==wxEVT_MOTION)
+            spInteractor->on_mouse_move(pos.x, pos.y, flags);
+    }
 }
