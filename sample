@@ -1,5 +1,5 @@
-alias C-Dur c2,e2,g2,c3,e3
-alias A-Mol a2,e2,a3,c3,e3
+alias C-Dur c4,e4,g4,c5,e5
+alias A-Mol a4,e4,a5,c5,e5
 
 {
 	K:G
@@ -7,6 +7,7 @@ alias A-Mol a2,e2,a3,c3,e3
 	
 	verse Zwrotka
 	
-	|: M:3/4 T:120 a2,e2:4., c2:8, d2:8, e2:8 | C-Dur:4, _:8, e2:8, d2:8, c2:8 :| repeat 2
-	|| A-Mol:4, _:4, a2:8, a2:8 | c2:8, _:8, c2,e2:8, _:8, C-Dur:4 ||
+	|: M:3/4 T:120 a4,e4:4., c4,g4:8, d4:8, e4:8 | C-Dur:4, _:8, e4:8, d4:8, c4:8 :| repeat 2
+	|| A-Mol:4, _:4, a4:8, a4:8 | c4,g4:8, _:8, c4,e4:8, _:8, C-Dur:4 ||
+	|: M:3/4 T:120 a4,e4:4., c4,g4:8, d4:8, e4:8 | ending 1 C-Dur:4, _:8, e4:8, d4:8, c4:8 :| repeat 2 ending 2 C-Dur:1
 }

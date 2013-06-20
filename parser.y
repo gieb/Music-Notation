@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <typeinfo>
+#include <sstream>
 
 using namespace std;
 
@@ -66,7 +67,7 @@ map<string, string* > verses;
 
 file:
 	alias line {
-		cout << "(score" << *$2 << ")";
+		$$ = $2;
 	}
 	;
 
@@ -85,7 +86,7 @@ alias:
 
 line:
 	LINE_BEG line_inside LINE_END {
-		$$ = new string("(instrument(musicData" + *$2 + "))");
+		$$ = new string("(score(instrument(musicData(" + *$2 + "))))");
 	}
 	;
 
@@ -195,13 +196,13 @@ repeat:
 
 repeat_inside:
 	REPEAT_BEG bar_group ending_bar REPEAT_END {
-		$$ = new string("(barline |:)" + *$2 + *$3 + "(barline :|)");
+		$$ = new string("(barline startRepetition)" + *$2 + *$3 + "(barline endRepetition)");
 		
 		delete $2;
 		delete $3;
 	}
 	| REPEAT_BEG bar_group REPEAT_END {
-		$$ = new string("(barline |:)" + *$2 + "(barline :|)");
+		$$ = new string("(barline startRepetition)" + *$2 + "(barline endRepetition)");
 		
 		delete $2;
 	}
@@ -209,7 +210,7 @@ repeat_inside:
 
 repeat_number:
 	REPEAT NUMBER {
-		$$ = new string("(text \"Repeat: " + *$2 + "\")");
+		$$ = new string("(text \"Repeat: x" + *$2 + "\")");
 		
 		delete $2;
 	}
@@ -244,7 +245,7 @@ ending:
 
 bar:
 	bar_inside BAR {
-		$$ = new string(*$1 + "(barline |)");
+		$$ = new string(*$1 + "(barline)");
 		
 		delete $1;
 	}
@@ -371,12 +372,14 @@ symbol:
 %%
 
 /////////////////////////////MAIN/////////////////////////////
-
-void parse(conts char* patch) {
-	FILE *f = fopen(patch);
+int parseError = 0;
+string error_str;
+void parse(const char* path) {
+	parseError=0;
+	FILE *f = fopen(path, "r");
 	if (!f) {
 		cerr << "fopen error " << endl ;
-		return -1;
+		return;
 	}
 	
 	yyin = f;
@@ -385,13 +388,19 @@ void parse(conts char* patch) {
 		yyparse();
 	} while (!feof(yyin));
 	
+	return;
 }
 
 ///////////////////////////FUNCTIONS///////////////////////////
 
 void yyerror(const char *s) {
 	cout << "line  " << line << ": " << yytext << ",  " << s << endl;
-	exit(-1);
+	parseError=1;
+	ostringstream ss;
+	ss << line;
+	
+	error_str =string("line: ") + ss.str() + string(" ") + string(yytext)+string(" ") + string(s);
+	return;
 }
 
 string getSound(note_struct*n, string length, bool dot){
@@ -442,9 +451,25 @@ string getSound(note_struct*n, string length, bool dot){
 }
 
 string getNote(string*n, string length, bool dot){
+	string temp;
+	
+	switch(atoi(length.c_str())){
+		case 1:
+			temp = (string)"w" + (dot?".)":")");
+			break;
+		case 2:
+			temp = (string)"h" + (dot?".)":")");
+			break;
+		case 4:
+			temp = (string)"q" + (dot?".)":")");
+			break;
+		case 8:
+			temp = (string)"e" + (dot?".)":")");
+			break;
+	}
 	if(n){
-		return "(n " + *n + " '" + length + ")";
+		return "(n " + *n + " " + temp;
 	}else{
-		return "(r '" + length + ")";
+		return "(r " + temp;
 	}
 }

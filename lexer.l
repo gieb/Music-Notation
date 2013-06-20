@@ -39,7 +39,7 @@ T:				{ return   TEMPO; }
 \+				{ return   SHARP; }
 ~				{ return   NATURAL; }
 _				{ return   PAUSE; }
-[abcdefg][01234]		{
+[abcdefg][012345]		{
 					yylval.str = new string(yytext);
 					return   PITCH;
 				}

@@ -1,33 +1,4 @@
-//---------------------------------------------------------------------------------------
-// This file is part of the Lomse library.
-// Copyright (c) 2010-2012 Cecilio Salmeron. All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
-//---------------------------------------------------------------------------------------
 
-// For compilers that support precompilation, includes "wx/wx.h".
 #include "wx/wxprec.h"
 
 #ifdef __BORLANDC__
@@ -216,7 +187,7 @@ enum
     k_menu_zoom_in = wxID_ZOOM_IN,
     k_menu_zoom_out = wxID_ZOOM_OUT,
     k_menu_save_lomse = wxID_SAVEAS,
-    k_menu_save_abc = wxID_SAVEAS,
+    k_menu_save_abc = wxID_SAVE,
     BUTTON_Hello = wxID_REFRESH,
 };
 
@@ -250,7 +221,7 @@ MyFrame::MyFrame()
       wxT("Hi!dsfsdsdf"), wxDefaultPosition, wxSize(850,40),
       wxTE_MULTILINE | wxTE_RICH , wxDefaultValidator, wxTextCtrlNameStr);
     sz->Add(MainEditBox);
-    button = new wxButton(this,BUTTON_Hello,_T("Generuj"), wxDefaultPosition, wxDefaultSize, 0);
+    button = new wxButton(this,BUTTON_Hello,_T("Generate"), wxDefaultPosition, wxDefaultSize, 0);
     sz->Add(button);
     SetSizer(sz);
 }
@@ -272,9 +243,6 @@ void MyFrame::create_menu()
     zoomMenu->Append(k_menu_zoom_in);
     zoomMenu->Append(k_menu_zoom_out);
 
-    wxMenu *helpMenu = new wxMenu;
-    helpMenu->Append(k_menu_help_about, _T("&About"));
-
     wxMenu *saveMenu = new wxMenu;
     saveMenu->Append(k_menu_save_lomse, _T("&To lomse format"));
     saveMenu->Append(k_menu_save_abc, _T("&To abcExtended format"));
@@ -282,7 +250,6 @@ void MyFrame::create_menu()
     wxMenuBar* menuBar = new wxMenuBar;
     menuBar->Append(fileMenu, _T("&File"));
     menuBar->Append(zoomMenu, _T("&Zoom"));
-    menuBar->Append(helpMenu, _T("&Help"));
     menuBar->Append(saveMenu, _T("&Save"));
 
 
@@ -311,31 +278,15 @@ void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 //---------------------------------------------------------------------------------------
 void MyFrame::initialize_lomse()
 {
-    // Lomse knows nothing about windows. It renders everything on bitmaps and the
-    // user application uses them. For instance, to display it on a wxWindows.
-    // Lomse supports a lot of bitmap formats and pixel formats. Therefore, before
-    // using the Lomse library you MUST specify which bitmap formap to use.
-    //
-    // For wxWidgets, I would suggets using a platform independent format. So
-    // I will use a wxImage as the rendering  buffer. wxImage is platform independent
-    // and its buffer is an array of characters in RGBRGBRGB... format,  in the
-    // top-to-bottom, left-to-right order. That is, the first RGB triplet corresponds
-    // to the first pixel of the first row; the second RGB triplet, to the second
-    // pixel of the first row, and so on until the end of the first row,
-    // with second row following after it and so on.
-    // Therefore, the pixel format is RGB 24 bits.
-    //
-    // Let's define the requiered information:
+
 
         //the pixel format
         int pixel_format = k_pix_format_rgb24;  //RGB 24bits
 
-        //the desired resolution. For Linux and Windows 96 pixels per inch works ok.
+
         int resolution = 96;    //96 ppi
 
-        //Normal y axis direction is 0 coordinate at top and increase downwards. You
-        //must specify if you would like just the opposite behaviour. For Windows and
-        //Linux the default behaviour is the right behaviour.
+
         bool reverse_y_axis = false;
 
     //initialize the library with these values
@@ -347,11 +298,7 @@ void MyFrame::open_test_document()
 {
     get_active_canvas()->open_test_document();
 
-    //BUG_BYPASS
-    // In Linux there are problems to catch Key Up/Down events. See for instance
-    // http://forums.wxwidgets.org/viewtopic.php?t=33057&p=137567
-    // Following line is not needed for Windows (doen't hurt) but it is
-    // necessary for Linux, in order to receive Key Up/Down events
+
     get_active_canvas()->SetFocus();
 }
 
@@ -376,16 +323,24 @@ void MyFrame::OnClick(wxCommandEvent& WXUNUSED(event)){
     out.close();
     parse("output.txt");
 
-    get_active_canvas()->getTextFromBox(yylval.str->c_str());
+    if(parseError == 0){
+        get_active_canvas()->getTextFromBox(yylval.str->c_str());
+    }
+    else
+    {
+        wxString er(error_str.c_str(),wxConvUTF8);
+        wxMessageBox(er);
+    }
+
+
 }
 void MyFrame::SaveLomse(wxCommandEvent& WXUNUSED(event)){
 
-    wxFileDialog saveFileDialog(this, _("Save Lomse file"),wxT(""),wxT(""),wxT("lomse files (*.lms|*.lmd"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    wxFileDialog saveFileDialog(this, _("Save Lomse file"),wxT(""),wxT(""),wxT("lomse files (*.lms|*.lmd)"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL)
         return;
 
-    // save the current contents in the file;
-    // this can be done with e.g. wxWidgets output streams:
+
     wxString mystring=MainEditBox->GetValue();
     std:ofstream outTmp("output.txt");
     outTmp << mystring.mb_str(wxConvUTF8);
@@ -393,7 +348,7 @@ void MyFrame::SaveLomse(wxCommandEvent& WXUNUSED(event)){
     parse("output.txt");
     ofstream out(saveFileDialog.GetPath().ToAscii().data());
     std::cout<<yylval.str;
-    out << yylval.str;
+    out << yylval.str->c_str();
     out.close();
 
 
@@ -403,12 +358,11 @@ void MyFrame::SaveLomse(wxCommandEvent& WXUNUSED(event)){
 }
 void MyFrame::SaveAbc(wxCommandEvent& WXUNUSED(event)){
 
-    wxFileDialog saveFileDialog(this, _("Save Lomse file"), wxT(""), wxT(""),wxT("abc files (*.cba"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    wxFileDialog saveFileDialog(this, _("Save Lomse file"), wxT(""), wxT(""),wxT("abc files (*.cba)"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL)
         return;
 
-    // save the current contents in the file;
-    // this can be done with e.g. wxWidgets output streams:
+
     wxString mystring=MainEditBox->GetValue();
     std:ofstream outTmp(saveFileDialog.GetPath().ToAscii().data());
     std::cout<<mystring.mb_str(wxConvUTF8);
@@ -463,8 +417,7 @@ MyCanvas::~MyCanvas()
 {
     delete_rendering_buffer();
 
-    //delete the Presenter. This will also delete the Document, the Interactor,
-    //the View and other related objects
+
     delete m_pPresenter;
 }
 
@@ -473,12 +426,11 @@ void MyCanvas::getTextFromBox(const char *text){
     try{
 
     std::string input(text);
-    std::cout<<input<<std::endl;
+
     delete m_pPresenter;
     m_pPresenter = m_lomse.new_document(ViewFactory::k_view_horizontal_book,input);
 
-    //get the pointer to the interactor, set the rendering buffer and register for
-    //receiving desired events
+
 
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
@@ -568,19 +520,16 @@ void MyCanvas::delete_rendering_buffer()
 //---------------------------------------------------------------------------------------
 void MyCanvas::create_rendering_buffer(int width, int height)
 {
-    //creates a bitmap of specified size and associates it to the rendering
-    //buffer for the view. Any existing buffer is automatically deleted
 
-    // allocate a new rendering buffer
     delete_rendering_buffer();
     m_nBufWidth = width;
     m_nBufHeight = height;
     m_buffer = new wxImage(width, height);
 
-    //get pointer to wxImage internal bitmap
+
     m_pdata = m_buffer->GetData();
 
-    //Attach this bitmap to Lomse rendering buffer
+
     #define BYTES_PER_PIXEL 3   //wxImage  has RGB, 24 bits format
     int stride = m_nBufWidth * BYTES_PER_PIXEL;     //number of bytes per row
     m_rbuf_window.attach(m_pdata, m_nBufWidth, m_nBufHeight, stride);
@@ -591,13 +540,7 @@ void MyCanvas::create_rendering_buffer(int width, int height)
 //-------------------------------------------------------------------------
 void MyCanvas::open_test_document()
 {
-    //Normally you will load the content of a file. But in this
-    //simple example we will create an empty document and define its content
-    //from a text string
 
-    //first, we will create a 'presenter'. It takes care of cretaing and maintaining
-    //all objects and relationships between the document, its views and the interactors
-    //to interct with the view
     delete m_pPresenter;
     m_pPresenter = m_lomse.new_document(ViewFactory::k_view_vertical_book,
         "(lenmusdoc (vers 0.0) (content (score (vers 1.6) "
@@ -669,9 +612,7 @@ void MyCanvas::wrapper_update_window(void* pThis, SpEventInfo pEvent)
 //---------------------------------------------------------------------------------------
 void MyCanvas::update_window()
 {
-    // Invoking update_window() results in just putting immediately the content
-    // of the currently rendered buffer to the window without neither calling
-    // any lomse methods nor generating any events  (i.e. Refresh() window)
+
 
     wxClientDC dc(this);
     copy_buffer_on_dc(dc);
