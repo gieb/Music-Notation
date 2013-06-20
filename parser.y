@@ -372,8 +372,8 @@ symbol:
 
 /////////////////////////////MAIN/////////////////////////////
 
-int main(int argc, char* args[]) {
-	FILE *f = fopen(args[1], "r");
+void parse(conts char* patch) {
+	FILE *f = fopen(patch);
 	if (!f) {
 		cerr << "fopen error " << endl ;
 		return -1;
