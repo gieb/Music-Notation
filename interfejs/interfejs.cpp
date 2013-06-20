@@ -50,7 +50,10 @@
 #endif
 
 #include <iostream>
+#include <fstream>
+#include <string>
 
+#include "../parser.tab.c"
 //lomse headers
 #include <lomse_doorway.h>
 #include <lomse_document.h>
@@ -97,6 +100,9 @@ protected:
     void OnOpen(wxCommandEvent& WXUNUSED(event));
     void OnZoomIn(wxCommandEvent& WXUNUSED(event));
     void OnZoomOut(wxCommandEvent& WXUNUSED(event));
+    void SaveAbc(wxCommandEvent& WXUNUSED(event));
+
+    void SaveLomse(wxCommandEvent& WXUNUSED(event));
     void OnClick(wxCommandEvent& WXUNUSED(event));
     //lomse related
     void initialize_lomse();
@@ -209,6 +215,8 @@ enum
     k_menu_help_about = wxID_ABOUT,
     k_menu_zoom_in = wxID_ZOOM_IN,
     k_menu_zoom_out = wxID_ZOOM_OUT,
+    k_menu_save_lomse = wxID_SAVEAS,
+    k_menu_save_abc = wxID_SAVEAS,
     BUTTON_Hello = wxID_REFRESH,
 };
 
@@ -220,6 +228,8 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(k_menu_file_open, MyFrame::OnOpen)
     EVT_MENU(k_menu_zoom_in, MyFrame::OnZoomIn)
     EVT_MENU(k_menu_zoom_out, MyFrame::OnZoomOut)
+    EVT_MENU(k_menu_save_lomse, MyFrame::SaveLomse)
+    EVT_MENU(k_menu_save_abc, MyFrame::SaveAbc)
     EVT_BUTTON ( BUTTON_Hello, MyFrame::OnClick )
 END_EVENT_TABLE()
 
@@ -265,10 +275,19 @@ void MyFrame::create_menu()
     wxMenu *helpMenu = new wxMenu;
     helpMenu->Append(k_menu_help_about, _T("&About"));
 
+    wxMenu *saveMenu = new wxMenu;
+    saveMenu->Append(k_menu_save_lomse, _T("&To lomse format"));
+    saveMenu->Append(k_menu_save_abc, _T("&To abcExtended format"));
+
     wxMenuBar* menuBar = new wxMenuBar;
     menuBar->Append(fileMenu, _T("&File"));
     menuBar->Append(zoomMenu, _T("&Zoom"));
     menuBar->Append(helpMenu, _T("&Help"));
+    menuBar->Append(saveMenu, _T("&Save"));
+
+
+
+
 
     SetMenuBar(menuBar);
 
@@ -352,8 +371,58 @@ void MyFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
 void MyFrame::OnClick(wxCommandEvent& WXUNUSED(event)){
 
     wxString mystring=MainEditBox->GetValue();
-    get_active_canvas()->getTextFromBox(mystring.mb_str(wxConvUTF8));
+    std:ofstream out("output.txt");
+    out << mystring.mb_str(wxConvUTF8);
+    out.close();
+    parse("output.txt");
+
+    get_active_canvas()->getTextFromBox(yylval.str->c_str());
 }
+void MyFrame::SaveLomse(wxCommandEvent& WXUNUSED(event)){
+
+    wxFileDialog saveFileDialog(this, _("Save Lomse file"),wxT(""),wxT(""),wxT("lomse files (*.lms|*.lmd"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    if (saveFileDialog.ShowModal() == wxID_CANCEL)
+        return;
+
+    // save the current contents in the file;
+    // this can be done with e.g. wxWidgets output streams:
+    wxString mystring=MainEditBox->GetValue();
+    std:ofstream outTmp("output.txt");
+    outTmp << mystring.mb_str(wxConvUTF8);
+    outTmp.close();
+    parse("output.txt");
+    ofstream out(saveFileDialog.GetPath().ToAscii().data());
+    std::cout<<yylval.str;
+    out << yylval.str;
+    out.close();
+
+
+
+
+
+}
+void MyFrame::SaveAbc(wxCommandEvent& WXUNUSED(event)){
+
+    wxFileDialog saveFileDialog(this, _("Save Lomse file"), wxT(""), wxT(""),wxT("abc files (*.cba"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    if (saveFileDialog.ShowModal() == wxID_CANCEL)
+        return;
+
+    // save the current contents in the file;
+    // this can be done with e.g. wxWidgets output streams:
+    wxString mystring=MainEditBox->GetValue();
+    std:ofstream outTmp(saveFileDialog.GetPath().ToAscii().data());
+    std::cout<<mystring.mb_str(wxConvUTF8);
+    outTmp << mystring.mb_str(wxConvUTF8);
+
+    outTmp.close();
+
+
+
+
+
+
+}
+
 //---------------------------------------------------------------------------------------
 void MyFrame::OnZoomIn(wxCommandEvent& WXUNUSED(event))
 {
@@ -404,6 +473,7 @@ void MyCanvas::getTextFromBox(const char *text){
     try{
 
     std::string input(text);
+    std::cout<<input<<std::endl;
     delete m_pPresenter;
     m_pPresenter = m_lomse.new_document(ViewFactory::k_view_horizontal_book,input);
 
