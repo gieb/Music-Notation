@@ -42,7 +42,7 @@
 #include <lomse_document.h>
 #include <lomse_graphic_view.h>
 #include <lomse_interactor.h>
-#include <lomse_presenter.h>
+#include <lomse/lomse_presenter.h>
 #include <lomse_events.h>
 #include <lomse_player_gui.h>
 #include <lomse_score_player.h>
@@ -56,10 +56,10 @@ static const int brush_size = 3;
 class MidiServer : public MidiServerBase
 {
 protected:
-    wxMidiSystem*  m_pMidiSystem;       
-    wxMidiOutDevice*  m_pMidiOut;       
+    wxMidiSystem*  m_pMidiSystem;
+    wxMidiOutDevice*  m_pMidiOut;
 
- 
+
     int		m_nOutDevId;
     int		m_nVoiceChannel;
 
@@ -70,7 +70,7 @@ public:
 
     int count_devices();
 
- 
+
     void set_out_device(int nOutDevId);
 
 
@@ -102,23 +102,20 @@ public:
 
     void open_test_document();
 
-    
+
     void OnQuit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
 
 protected:
-   
+
     MyCanvas* get_active_canvas() const { return m_canvas; }
 
 
     void OnOpen(wxCommandEvent& WXUNUSED(event));
     void OnZoomIn(wxCommandEvent& WXUNUSED(event));
     void OnZoomOut(wxCommandEvent& WXUNUSED(event));
-    void SaveAbc(wxCommandEvent& WXUNUSED(event));
-
     void SaveLomse(wxCommandEvent& WXUNUSED(event));
     void OnClick(wxCommandEvent& WXUNUSED(event));
-    void OnPrint(wxCommandEvent& WXUNUSED(event));
     void on_midi_settings(wxCommandEvent& WXUNUSED(event));
     void on_sound_test(wxCommandEvent& WXUNUSED(event));
     void on_play_start(wxCommandEvent& WXUNUSED(event));
@@ -131,7 +128,7 @@ protected:
 
     void create_menu();
 
-    LomseDoorway m_lomse;        
+    LomseDoorway m_lomse;
     MyCanvas* m_canvas;
     wxTextCtrl *MainEditBox;
     wxButton *button;
@@ -187,18 +184,18 @@ protected:
     unsigned get_mouse_flags(wxMouseEvent& event);
 
 
-    LomseDoorway&   m_lomse;       
+    LomseDoorway&   m_lomse;
     Presenter*      m_pPresenter;
 
-   
+
     RenderingBuffer     m_rbuf_window;
-      
-    unsigned char*      m_pdata;        
-    int                 m_nBufWidth, m_nBufHeight; 
+
+    unsigned char*      m_pdata;
+    int                 m_nBufWidth, m_nBufHeight;
     ScorePlayer* m_pPlayer;
 
- 
-    bool    m_view_needs_redraw;      
+
+    bool    m_view_needs_redraw;
 
 
     DECLARE_EVENT_TABLE()
@@ -222,23 +219,21 @@ bool MyApp::OnInit()
 
 enum
 {
-    
-    k_menu_file_open = wxID_HIGHEST + 1,
 
- 
+    k_menu_file_open = wxID_HIGHEST + 1,
     k_menu_file_quit = wxID_EXIT,
     k_menu_help_about = wxID_ABOUT,
     k_menu_zoom_in = wxID_ZOOM_IN,
     k_menu_zoom_out = wxID_ZOOM_OUT,
     k_menu_save_lomse = wxID_SAVEAS,
-    k_menu_save_abc = wxID_SAVEAS,
-    k_menu_print = wxID_SAVEAS,
-      k_menu_play_start,
+
+    k_menu_play_start=wxID_ANY+1,
     k_menu_play_stop,
     k_menu_play_pause,
     k_menu_midi_settings,
     k_menu_midi_test,
     BUTTON_Hello = wxID_REFRESH,
+
 };
 
 
@@ -249,8 +244,6 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(k_menu_zoom_in, MyFrame::OnZoomIn)
     EVT_MENU(k_menu_zoom_out, MyFrame::OnZoomOut)
     EVT_MENU(k_menu_save_lomse, MyFrame::SaveLomse)
-    EVT_MENU(k_menu_save_abc, MyFrame::SaveAbc)
-    EVT_MENU(k_menu_print, MyFrame::OnPrint)
     EVT_BUTTON( BUTTON_Hello, MyFrame::OnClick )
 
     EVT_MENU(k_menu_midi_settings, MyFrame::on_midi_settings)
@@ -300,10 +293,7 @@ void MyFrame::create_menu()
 {
     wxMenu *fileMenu = new wxMenu;
     fileMenu->Append(k_menu_file_open, _T("&Open..."));
-    fileMenu->Append(k_menu_save_lomse, _T("&Save as LenMus..."));
-    fileMenu->Append(k_menu_save_abc, _T("&Save as cba..."));
-    fileMenu->AppendSeparator();
-    fileMenu->Append(k_menu_print,_T("&Save as image..."));
+    fileMenu->Append(k_menu_save_lomse, _T("&Save as..."));
     fileMenu->AppendSeparator();
     fileMenu->Append(k_menu_file_quit, _T("E&xit"));
 
@@ -351,11 +341,11 @@ void MyFrame::initialize_lomse()
 {
 
 
-      
-        int pixel_format = k_pix_format_rgb24;  
+
+        int pixel_format = k_pix_format_rgb24;
 
 
-        int resolution = 96;    
+        int resolution = 96;
 
 
         bool reverse_y_axis = false;
@@ -379,7 +369,7 @@ void MyFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
     wxString defaultPath = wxT("../../../test-scores/");
 
     wxString filename = wxFileSelector(_("Open score"), defaultPath,
-        wxEmptyString, wxEmptyString, wxT("LenMus files (*.lms *.lmd)|*.lms;*.lmd|Cba files (*.cba)|*.cba"));
+        wxEmptyString, wxEmptyString, wxT("LenMus files (*.lms *.lmd)|*.lms;*.lmd|Cba files (*.cba)|*.cba|All files (*.*)|*.*"));
 
     if (filename.empty())
         return;
@@ -389,7 +379,6 @@ void MyFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
     while(tkz.HasMoreTokens()){ extension =tkz.GetNextToken(); }
 
     if(!extension.compare(_T("cba"))){
-        std::cout<<"jestem "<<extension.mb_str()<<" "<<filename.mb_str() <<std::endl;
         ifstream myfile (filename.mb_str());
         if (myfile.is_open()){
             parse(filename.ToAscii().data());
@@ -400,8 +389,15 @@ void MyFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
         }
 
     }
-    else
-        get_active_canvas()->open_file(filename);
+    if(!extension.compare(_T("lms")) && extension.compare(_T("lmd"))) {
+         get_active_canvas()->open_file(filename);
+    }else{
+        ifstream myfile (filename.mb_str());
+        if (myfile.is_open()){
+            std::string str((std::istreambuf_iterator<char>(myfile)), std::istreambuf_iterator<char>());
+            MainEditBox->SetValue( wxString::FromUTF8(str.c_str()));
+        }
+    }
 }
 void MyFrame::OnClick(wxCommandEvent& WXUNUSED(event)){
 
@@ -426,46 +422,62 @@ void MyFrame::OnClick(wxCommandEvent& WXUNUSED(event)){
 }
 void MyFrame::SaveLomse(wxCommandEvent& WXUNUSED(event)){
 
-    wxFileDialog saveFileDialog(this, _("Save Lomse file"),wxT(""),wxT(""),wxT("lomse files (*.lms|*.lmd)|*.lms;*.lmd"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
+    wxFileDialog saveFileDialog(this, _("Save Lomse file"),wxT(""),wxT(""),wxT("lomse files (*.lms *.lmd)|*.lms;*.lmd|Cba files (*.cba)|*.cba|Image (*.jpg)|*.jpg"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
     if (saveFileDialog.ShowModal() == wxID_CANCEL)
         return;
 
+    if(saveFileDialog.GetFilterIndex() == 0){
+        wxString mystring=MainEditBox->GetValue();
+        std:ofstream outTmp("output.txt");
+        outTmp << mystring.mb_str(wxConvUTF8);
+        outTmp.close();
+        parse("output.txt");
 
-    wxString mystring=MainEditBox->GetValue();
-    std:ofstream outTmp("output.txt");
-    outTmp << mystring.mb_str(wxConvUTF8);
-    outTmp.close();
-    parse("output.txt");
-    ofstream out(saveFileDialog.GetPath().ToAscii().data());
-    std::cout<<yylval.str;
-    out << yylval.str->c_str();
-    out.close();
+        wxString path = saveFileDialog.GetPath();
 
+        wxStringTokenizer tkz(path,_T("."));
+        wxString extension;
 
+        while(tkz.HasMoreTokens()){ extension = tkz.GetNextToken(); }
+        if(extension.compare(_T("lms")) || extension.compare(_T("lmd")))
+           path.append(_T(".lms"));
 
+        if(parseError = 1){
+
+        }
+
+        ofstream out(path.ToAscii().data());
+        std::cout<<yylval.str;
+        out << yylval.str->c_str();
+        out.close();
+    }if(saveFileDialog.GetFilterIndex() == 1){
+        wxString path = saveFileDialog.GetPath();
+
+        wxStringTokenizer tkz(path,_T("."));
+        wxString extension;
+
+        while(tkz.HasMoreTokens()){ extension =tkz.GetNextToken(); }
+        if(extension.compare(_T("cba"))) path.append(_T(".cba"));
+        wxString mystring=MainEditBox->GetValue();
+        ofstream outTmp(path.ToAscii().data());
+        std::cout<<mystring.mb_str(wxConvUTF8);
+        outTmp << mystring.mb_str(wxConvUTF8);
+
+        outTmp.close();
+    }else{
+        wxString path = saveFileDialog.GetPath();
+
+        wxStringTokenizer tkz(path,_T("."));
+        wxString extension;
+
+        while(tkz.HasMoreTokens()){ extension =tkz.GetNextToken(); }
+        if(extension.compare(_T("jpg"))) path.append(_T(".jpg"));
+        get_active_canvas()->m_buffer->SaveFile(path,wxBITMAP_TYPE_JPEG);
+    }
 
 
 }
-void MyFrame::SaveAbc(wxCommandEvent& WXUNUSED(event)){
 
-    wxFileDialog saveFileDialog(this, _("Save Lomse file"), wxT(""), wxT(""),wxT("abc files (*.cba)|*.cba"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
-    if (saveFileDialog.ShowModal() == wxID_CANCEL)
-        return;
-
-
-    wxString mystring=MainEditBox->GetValue();
-    std:ofstream outTmp(saveFileDialog.GetPath().ToAscii().data());
-    std::cout<<mystring.mb_str(wxConvUTF8);
-    outTmp << mystring.mb_str(wxConvUTF8);
-
-    outTmp.close();
-
-
-
-
-
-
-}
 
 void MyFrame::OnZoomIn(wxCommandEvent& WXUNUSED(event))
 {
@@ -478,18 +490,7 @@ void MyFrame::OnZoomOut(wxCommandEvent& WXUNUSED(event))
     get_active_canvas()->zoom_out();
 }
 
-void MyFrame::OnPrint(wxCommandEvent& WXUNUSED(event)){
 
-
-    wxFileDialog saveFileDialog(this, _("Save Lomse file"), wxT(""), wxT(""),wxT("Save as (*.jpg)|*.jpg"), wxFD_SAVE|wxFD_OVERWRITE_PROMPT);
-    if (saveFileDialog.ShowModal() == wxID_CANCEL)
-        return;
-
-    get_active_canvas()->m_buffer->SaveFile(saveFileDialog.GetPath(),wxBITMAP_TYPE_JPEG);
-    print->PrintText(_T("<HTML>\n<BODY>\n <img src=image.png /> \n </BODY>\n</HTML>\n"));
-
-
-}
 void MyFrame::on_play_start(wxCommandEvent& WXUNUSED(event))
 {
     get_active_canvas()->play_start();
@@ -535,20 +536,20 @@ void MyFrame::show_midi_settings_dlg()
     }
 
     int iSel = ::wxGetSingleChoiceIndex(
-                            _T("Select Midi output device to use:"),    
-                            _T("Midi settings dlg"),                    
+                            _T("Select Midi output device to use:"),
+                            _T("Midi settings dlg"),
                             outDevices,
-                            this                                        
+                            this
                        );
     if (iSel == -1)
     {
-        
+
     }
     else
     {
-        
+
         MidiServer* pMidi = get_midi_server();
-        int deviceID = deviceIndex[iSel];   
+        int deviceID = deviceIndex[iSel];
         pMidi->set_out_device(deviceID);
     }
 }
@@ -613,7 +614,7 @@ void MyCanvas::getTextFromBox(const char *text){
 
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
-  
+
         spInteractor->set_rendering_buffer(&m_rbuf_window);
 
         spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
@@ -715,57 +716,11 @@ void MyCanvas::create_rendering_buffer(int width, int height)
 void MyCanvas::open_test_document()
 {
 
-    delete m_pPresenter;
-    m_pPresenter = m_lomse.new_document(ViewFactory::k_view_vertical_book,
-        "(lenmusdoc (vers 0.0) (content (score (vers 1.6) "
-        "(instrument (name \"Violin\")(abbrev \"Vln.\")(musicData "
-        "(clef F4)(key E)(time 2 4)(n +c3 e.)(barline)"
-        "(n e2 q)(n e3 q)(barline)"
-        "(n f2 e (beam 1 +))(n g2 e (beam 1 -))"
-            "(n f3 e (beam 3 +))(n g3 e (beam 3 -))(barline)"
-        "(n f2 e. (beam 4 +))(n g2 s (beam 4 -b))"
-            "(n f3 s (beam 5 +f))(n g3 e. (beam 5 -))(barline)"
-        "(n g2 e. (beam 2 +))(n e3 s (beam 2 -b))(n g3 q)(barline)"
-        "(n a2 e (beam 6 +))(n g2 e (beam 6 -))(n a3 q)(barline)"
-        "(n -b2 q)(n =b3 q)(barline)"
-        "(n xc3 q)(n ++c4 q)(barline)"
-        "(n d3 q)(n --d4 q)(barline)"
-        "(chord (n e3 q)(n c3 q)(n g3 q))"
-        "(n e4 q)(barline)"
-        "(n f3 q)(n f4 q)(barline end)"
-        "))"
-        "(instrument (name \"piano\")(abbrev \"P.\")(staves 2)(musicData "
-        "(clef G p1)(clef F4 p2)(key F)(time 12 8)"
-        "(n c5 e. p1)(barline)"
-        "(n e4 e p1 (beam 10 +))(n g3 e p2 (beam 10 -))"
-        "(n e4 e p1 (stem up)(beam 11 +))(n e5 e p1 (stem down)(beam 11 -))(barline)"
-        "(n e4 s p1 (beam 12 ++))(n f4 s p1 (beam 12 ==))"
-            "(n g4 s p1 (beam 12 ==))(n a4 s p1 (beam 12 --))"
-        "(n c5 q p1)(barline)"
-        "(n c4 q (slur 1 start))(n e4 q)"
-        "(barline)"
-        "(n g4 q )(n c5 q (slur 1 stop))"
-        "(barline)"
-        "(n e4 q (tie 1 start))(n e4 q (tie 1 stop))"
-        "(barline)"
-        "(n c4 e g+ t3/2)(n e4 e)(n d4 e g- t-)(n g4 q)"
-        "(barline)"
-        "(n c4 e t3/2)(n e4 e)(n d4 e t-)(n g4 q)"
-        "(barline)"
-        "))"
-        ")))" );
-
-   
-    if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
-    {
-        spInteractor->set_rendering_buffer(&m_rbuf_window);
-
-        spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 
 
-        spInteractor->hide_caret();
-    }
+
 }
+
 
 //---------------------------------------------------------------------------------------
 void MyCanvas::force_redraw()
@@ -830,7 +785,7 @@ void MyCanvas::OnKeyDown(wxKeyEvent& event)
         case WXK_SHIFT:
         case WXK_ALT:
         case WXK_CONTROL:
-            return;      
+            return;
 
         default:
             on_key(event.GetX(), event.GetY(), nKeyCode, flags);;
@@ -998,7 +953,7 @@ void MidiServer::set_out_device(int nOutDevId)
 
     if (!m_pMidiOut || (m_nOutDevId != nOutDevId))
     {
-     
+
          if (m_pMidiOut)
          {
             nErr = m_pMidiOut->Close();
@@ -1013,16 +968,16 @@ void MidiServer::set_out_device(int nOutDevId)
             }
         }
 
-        
+
         m_nOutDevId = nOutDevId;
         if (m_nOutDevId != -1)
         {
             try
             {
                 m_pMidiOut = new wxMidiOutDevice(m_nOutDevId);
-                nErr = m_pMidiOut->Open(0, NULL);        
+                nErr = m_pMidiOut->Open(0, NULL);
             }
-            catch(...)      
+            catch(...)
             {
 				wxLogMessage(_T("[MidiServer::set_out_device] Crash opening Midi device"));
 				return;
@@ -1090,7 +1045,7 @@ void MidiServer::test_midi_out()
     for (int i = 0; i < SCALE_SIZE; i++)
     {
         m_pMidiOut->NoteOn(m_nVoiceChannel, scale[i], 100);
-        ::wxMilliSleep(200);    
+        ::wxMilliSleep(200);
         m_pMidiOut->NoteOff(m_nVoiceChannel, scale[i], 100);
     }
 }
