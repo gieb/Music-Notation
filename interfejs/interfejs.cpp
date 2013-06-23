@@ -50,16 +50,16 @@
 using namespace lomse;
 
 static const int brush_size = 3;
-//---------------------------------------------------------------------------------------
-// Define the application
+
+
 
 class MidiServer : public MidiServerBase
 {
 protected:
-    wxMidiSystem*  m_pMidiSystem;       //MIDI system
-    wxMidiOutDevice*  m_pMidiOut;       //out device object
+    wxMidiSystem*  m_pMidiSystem;       
+    wxMidiOutDevice*  m_pMidiOut;       
 
-    //MIDI configuration information
+ 
     int		m_nOutDevId;
     int		m_nVoiceChannel;
 
@@ -67,16 +67,15 @@ public:
     MidiServer();
     ~MidiServer();
 
-    //get number of available Midi devices
+
     int count_devices();
 
-    //set up configuration
+ 
     void set_out_device(int nOutDevId);
 
-    //create some sounds to test Midi
+
     void test_midi_out();
 
-    //mandatory overrides from MidiServerBase
     void program_change(int channel, int instr);
     void voice_change(int channel, int instr);
     void note_on(int channel, int pitch, int volume);
@@ -90,29 +89,28 @@ public:
 
 };
 
-//forward declarations
+
 class MyCanvas;
 
-//---------------------------------------------------------------------------------------
-// Define the main frame
+
 class MyFrame: public wxFrame
 {
 public:
     MyFrame();
     virtual ~MyFrame();
 
-    //commands
+
     void open_test_document();
 
-    //event handlers (these functions should _not_ be virtual)
+    
     void OnQuit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
 
 protected:
-    //accessors
+   
     MyCanvas* get_active_canvas() const { return m_canvas; }
 
-    //event handlers
+
     void OnOpen(wxCommandEvent& WXUNUSED(event));
     void OnZoomIn(wxCommandEvent& WXUNUSED(event));
     void OnZoomOut(wxCommandEvent& WXUNUSED(event));
@@ -128,12 +126,12 @@ protected:
     void on_play_pause(wxCommandEvent& WXUNUSED(event));
 
     void show_midi_settings_dlg();
-    //lomse related
+
     void initialize_lomse();
 
     void create_menu();
 
-    LomseDoorway m_lomse;        //the Lomse library doorway
+    LomseDoorway m_lomse;        
     MyCanvas* m_canvas;
     wxTextCtrl *MainEditBox;
     wxButton *button;
@@ -150,8 +148,7 @@ protected:
     DECLARE_EVENT_TABLE()
 };
 
-//---------------------------------------------------------------------------------------
-// MyCanvas is a window on which we show the scores
+
 class MyCanvas : public wxWindow, public PlayerNoGui
 {
 public:
@@ -189,37 +186,28 @@ protected:
     unsigned get_keyboard_flags(wxKeyEvent& event);
     unsigned get_mouse_flags(wxMouseEvent& event);
 
-    // In this first example we are just going to display an score on the window.
-    // Let's define the necessary variables:
-    LomseDoorway&   m_lomse;        //the Lomse library doorway
+
+    LomseDoorway&   m_lomse;       
     Presenter*      m_pPresenter;
 
-    //the Lomse View renders its content on a bitmap. To manage it, Lomse
-    //associates the bitmap to a RenderingBuffer object.
-    //It is your responsibility to render the bitmap on a window.
-    //Here you define the rendering buffer and its associated bitmap to be
-    //used by the previously defined View.
+   
     RenderingBuffer     m_rbuf_window;
-         //the image to serve as buffer
-    unsigned char*      m_pdata;        //ptr to the bitmap
-    int                 m_nBufWidth, m_nBufHeight;  //size of the bitmap
+      
+    unsigned char*      m_pdata;        
+    int                 m_nBufWidth, m_nBufHeight; 
     ScorePlayer* m_pPlayer;
 
-    //some additinal variables
-    bool    m_view_needs_redraw;      //to control when the View must be re-drawn
+ 
+    bool    m_view_needs_redraw;      
 
 
     DECLARE_EVENT_TABLE()
 };
 
 
-//=======================================================================================
-// MyApp implementation
-//=======================================================================================
 
 IMPLEMENT_APP(MyApp)
 
-// 'Main program' equivalent: the program execution "starts" here
 bool MyApp::OnInit()
 {
     MyFrame* frame = new MyFrame;
@@ -232,21 +220,12 @@ bool MyApp::OnInit()
 }
 
 
-//=======================================================================================
-// MyFrame implementation
-//=======================================================================================
-
-//---------------------------------------------------------------------------------------
-// constants for menu IDs
 enum
 {
-    //new IDs
+    
     k_menu_file_open = wxID_HIGHEST + 1,
 
-    //using standard IDs
-    //it is important for the id corresponding to the "About" command to have
-    //this standard value as otherwise it won't be handled properly under Mac
-    //(where it is special and put into the "Apple" menu)
+ 
     k_menu_file_quit = wxID_EXIT,
     k_menu_help_about = wxID_ABOUT,
     k_menu_zoom_in = wxID_ZOOM_IN,
@@ -262,8 +241,7 @@ enum
     BUTTON_Hello = wxID_REFRESH,
 };
 
-//---------------------------------------------------------------------------------------
-// events table
+
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_MENU(k_menu_file_quit, MyFrame::OnQuit)
     EVT_MENU(k_menu_help_about, MyFrame::OnAbout)
@@ -283,9 +261,8 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 END_EVENT_TABLE()
 
 
-//---------------------------------------------------------------------------------------
 MyFrame::MyFrame()
-    : wxFrame(NULL, wxID_ANY, _T("Lomse sample for wxWidgets"),
+    : wxFrame(NULL, wxID_ANY, _T("Music notation"),
               wxDefaultPosition, wxSize(1224,640))
         , m_pMidi(NULL)
         , m_pPlayer(NULL)
@@ -312,14 +289,13 @@ MyFrame::MyFrame()
     SetSizer(sz);
 }
 
-//---------------------------------------------------------------------------------------
 MyFrame::~MyFrame()
 {
     delete m_pMidi;
     delete m_pPlayer;
 }
 
-//---------------------------------------------------------------------------------------
+
 void MyFrame::create_menu()
 {
     wxMenu *fileMenu = new wxMenu;
@@ -356,13 +332,13 @@ void MyFrame::create_menu()
 
 }
 
-//---------------------------------------------------------------------------------------
+
 void MyFrame::OnQuit(wxCommandEvent& WXUNUSED(event))
 {
     Close(true /*force to close*/);
 }
 
-//---------------------------------------------------------------------------------------
+
 void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 {
     wxMessageBox(_T("Lomse: sample 1 for wxWidgets"),
@@ -370,21 +346,21 @@ void MyFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
                  wxOK | wxICON_INFORMATION, this);
 }
 
-//---------------------------------------------------------------------------------------
+
 void MyFrame::initialize_lomse()
 {
 
 
-        //the pixel format
-        int pixel_format = k_pix_format_rgb24;  //RGB 24bits
+      
+        int pixel_format = k_pix_format_rgb24;  
 
 
-        int resolution = 96;    //96 ppi
+        int resolution = 96;    
 
 
         bool reverse_y_axis = false;
 
-    //initialize the library with these values
+
     m_lomse.init_library(pixel_format,resolution, reverse_y_axis);
 }
 
@@ -410,7 +386,6 @@ void MyFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
     char sign=0;
     wxStringTokenizer tkz(filename,_T("."));
     wxString extension;
-    //find extension from file name
     while(tkz.HasMoreTokens()){ extension =tkz.GetNextToken(); }
 
     if(!extension.compare(_T("cba"))){
@@ -492,13 +467,12 @@ void MyFrame::SaveAbc(wxCommandEvent& WXUNUSED(event)){
 
 }
 
-//---------------------------------------------------------------------------------------
 void MyFrame::OnZoomIn(wxCommandEvent& WXUNUSED(event))
 {
     get_active_canvas()->zoom_in();
 }
 
-//---------------------------------------------------------------------------------------
+
 void MyFrame::OnZoomOut(wxCommandEvent& WXUNUSED(event))
 {
     get_active_canvas()->zoom_out();
@@ -521,25 +495,21 @@ void MyFrame::on_play_start(wxCommandEvent& WXUNUSED(event))
     get_active_canvas()->play_start();
 }
 
-//---------------------------------------------------------------------------------------
 void MyFrame::on_play_stop(wxCommandEvent& WXUNUSED(event))
 {
     get_active_canvas()->play_stop();
 }
 
-//---------------------------------------------------------------------------------------
 void MyFrame::on_play_pause(wxCommandEvent& WXUNUSED(event))
 {
     get_active_canvas()->play_pause();
 }
 
-//---------------------------------------------------------------------------------------
 void MyFrame::on_midi_settings(wxCommandEvent& WXUNUSED(event))
 {
     show_midi_settings_dlg();
 }
 
-//---------------------------------------------------------------------------------------
 void MyFrame::on_sound_test(wxCommandEvent& WXUNUSED(event))
 {
     MidiServer* pMidi = get_midi_server();
@@ -547,13 +517,11 @@ void MyFrame::on_sound_test(wxCommandEvent& WXUNUSED(event))
     pMidi->test_midi_out();
 }
 
-//---------------------------------------------------------------------------------------
 void MyFrame::show_midi_settings_dlg()
 {
     wxArrayString outDevices;
     vector<int> deviceIndex;
 
-    //get available Midi out devices
     MidiServer* pMidi = get_midi_server();
     int nNumDevices = pMidi->count_devices();
     for (int i = 0; i < nNumDevices; i++)
@@ -567,21 +535,20 @@ void MyFrame::show_midi_settings_dlg()
     }
 
     int iSel = ::wxGetSingleChoiceIndex(
-                            _T("Select Midi output device to use:"),    //message
-                            _T("Midi settings dlg"),                    //window title
+                            _T("Select Midi output device to use:"),    
+                            _T("Midi settings dlg"),                    
                             outDevices,
-                            this                                        //parent window
+                            this                                        
                        );
     if (iSel == -1)
     {
-        //the user pressed cancel
-        //
+        
     }
     else
     {
-        //set current selection
+        
         MidiServer* pMidi = get_midi_server();
-        int deviceID = deviceIndex[iSel];   //output device
+        int deviceID = deviceIndex[iSel];   
         pMidi->set_out_device(deviceID);
     }
 }
@@ -604,9 +571,7 @@ ScorePlayer* MyFrame::get_score_player()
     }
     return m_pPlayer;
 }
-//=======================================================================================
-// MyCanvas implementation
-//=======================================================================================
+
 
 BEGIN_EVENT_TABLE(MyCanvas, wxWindow)
     EVT_KEY_DOWN(MyCanvas::OnKeyDown)
@@ -648,17 +613,14 @@ void MyCanvas::getTextFromBox(const char *text){
 
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
-        //connect the View with the window buffer
+  
         spInteractor->set_rendering_buffer(&m_rbuf_window);
 
-        //ask to receive desired events
         spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 
-        //hide edition caret
         spInteractor->hide_caret();
     }
 
-    //render the new score
     m_view_needs_redraw = true;
     Refresh(false /* don't erase background */);
     }catch(...){
@@ -675,21 +637,19 @@ void MyCanvas::open_file(const wxString& fullname)
     m_pPresenter = m_lomse.open_document(ViewFactory::k_view_horizontal_book,
                                          filename);
 
-    //get the pointer to the interactor, set the rendering buffer and register for
-    //receiving desired events
+
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
-        //connect the View with the window buffer
+
         spInteractor->set_rendering_buffer(&m_rbuf_window);
 
-        //ask to receive desired events
+
         spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 
-        //hide edition caret
         spInteractor->hide_caret();
     }
 
-    //render the new score
+
     m_view_needs_redraw = true;
     Refresh(false /* don't erase background */);
 }
@@ -795,17 +755,14 @@ void MyCanvas::open_test_document()
         "))"
         ")))" );
 
-    //get the pointer to the interactor, set the rendering buffer and register for
-    //receiving desired events
+   
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
-        //connect the View with the window buffer
         spInteractor->set_rendering_buffer(&m_rbuf_window);
 
-        //ask to receive desired events
         spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 
-        //hide edition caret
+
         spInteractor->hide_caret();
     }
 }
@@ -845,7 +802,6 @@ void MyCanvas::copy_buffer_on_dc(wxDC& dc)
 //-------------------------------------------------------------------------
 void MyCanvas::update_view_content()
 {
-    //request the view to re-draw the bitmap
 
     if (!m_pPresenter) return;
 
@@ -861,20 +817,20 @@ void MyCanvas::OnKeyDown(wxKeyEvent& event)
     int nKeyCode = event.GetKeyCode();
     unsigned flags = get_keyboard_flags(event);
 
-    //fix ctrol+key codes
+
     if (nKeyCode > 0 && nKeyCode < 27)
     {
         nKeyCode += int('A') - 1;
         flags |= k_kbd_ctrl;
     }
 
-    //process key
+
     switch (nKeyCode)
     {
         case WXK_SHIFT:
         case WXK_ALT:
         case WXK_CONTROL:
-            return;      //do nothing
+            return;      
 
         default:
             on_key(event.GetX(), event.GetY(), nKeyCode, flags);;
@@ -913,7 +869,6 @@ void MyCanvas::zoom_in()
 {
     if (!m_pPresenter) return;
 
-    //do zoom in centered on window center
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
         wxSize size = this->GetClientSize();
@@ -927,7 +882,6 @@ void MyCanvas::zoom_out()
 {
     if (!m_pPresenter) return;
 
-    //do zoom out centered on window center
     if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
     {
         wxSize size = this->GetClientSize();
@@ -949,7 +903,7 @@ unsigned MyCanvas::get_mouse_flags(wxMouseEvent& event)
     return flags;
 }
 
-//---------------------------------------------------------------------------------------
+
 unsigned MyCanvas::get_keyboard_flags(wxKeyEvent& event)
 {
     unsigned flags = 0;
@@ -959,7 +913,7 @@ unsigned MyCanvas::get_keyboard_flags(wxKeyEvent& event)
     return flags;
 }
 
-//-------------------------------------------------------------------------
+
 void MyCanvas::OnMouseEvent(wxMouseEvent& event)
 {
     if (!m_pPresenter) return;
@@ -1008,13 +962,12 @@ void MyCanvas::play_start()
     }
 }
 
-//-------------------------------------------------------------------------
 void MyCanvas::play_stop()
 {
     m_pPlayer->stop();
 }
 
-//-------------------------------------------------------------------------
+
 void MyCanvas::play_pause()
 {
     m_pPlayer->pause();
@@ -1027,7 +980,7 @@ MidiServer::MidiServer()
 {
 }
 
-//---------------------------------------------------------------------------------------
+
 MidiServer::~MidiServer()
 {
     if (m_pMidiOut)
@@ -1037,15 +990,15 @@ MidiServer::~MidiServer()
     delete m_pMidiSystem;
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::set_out_device(int nOutDevId)
 {
     wxMidiError nErr;
 
-    //if out device Id has changed close current device and open the new one
+
     if (!m_pMidiOut || (m_nOutDevId != nOutDevId))
     {
-        //close current device
+     
          if (m_pMidiOut)
          {
             nErr = m_pMidiOut->Close();
@@ -1060,16 +1013,16 @@ void MidiServer::set_out_device(int nOutDevId)
             }
         }
 
-        //open new one
+        
         m_nOutDevId = nOutDevId;
         if (m_nOutDevId != -1)
         {
             try
             {
                 m_pMidiOut = new wxMidiOutDevice(m_nOutDevId);
-                nErr = m_pMidiOut->Open(0, NULL);        // 0 latency, no driver user info
+                nErr = m_pMidiOut->Open(0, NULL);        
             }
-            catch(...)      //handle all exceptions
+            catch(...)      
             {
 				wxLogMessage(_T("[MidiServer::set_out_device] Crash opening Midi device"));
 				return;
@@ -1085,13 +1038,13 @@ void MidiServer::set_out_device(int nOutDevId)
     }
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::program_change(int channel, int instr)
 {
     m_pMidiOut->ProgramChange(channel, instr);
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::voice_change(int channel, int instrument)
 {
     m_nVoiceChannel = channel;
@@ -1107,42 +1060,42 @@ void MidiServer::voice_change(int channel, int instrument)
     }
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::note_on(int channel, int pitch, int volume)
 {
     m_pMidiOut->NoteOn(channel, pitch, volume);
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::note_off(int channel, int pitch, int volume)
 {
     m_pMidiOut->NoteOff(channel, pitch, volume);
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::all_sounds_off()
 {
     m_pMidiOut->AllSoundsOff();
 }
 
-//---------------------------------------------------------------------------------------
+
 void MidiServer::test_midi_out()
 {
     if (!m_pMidiOut) return;
 
-    //Play a scale
+
     int scale[] = { 60, 62, 64, 65, 67, 69, 71, 72 };
     #define SCALE_SIZE 8
 
     for (int i = 0; i < SCALE_SIZE; i++)
     {
         m_pMidiOut->NoteOn(m_nVoiceChannel, scale[i], 100);
-        ::wxMilliSleep(200);    // wait 200ms
+        ::wxMilliSleep(200);    
         m_pMidiOut->NoteOff(m_nVoiceChannel, scale[i], 100);
     }
 }
 
-//---------------------------------------------------------------------------------------
+
 int MidiServer::count_devices()
 {
     return m_pMidiSystem->CountDevices();
